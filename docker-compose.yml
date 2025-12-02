@@ -10,7 +10,6 @@ services:
     ports:
       - "90:80"
      networks:
-      - veterinaria-net
       - dokploy-network
 networks:
   dokploy-network:
