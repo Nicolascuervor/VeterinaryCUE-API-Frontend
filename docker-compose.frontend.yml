@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Cambia este valor al dominio/gateway que necesites durante el build.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://api.veterinariacue.com}
+    container_name: vetcue-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    environment:
+      NODE_ENV: production
