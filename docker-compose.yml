@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   frontend:
@@ -7,12 +7,12 @@ services:
       dockerfile: Dockerfile
     image: veterinary-frontend:latest
     container_name: veterinary-frontend
-    restart: unless-stopped
+    restart: always
     ports:
       - "90:80"
     networks:
-      - veterinaria-net # Asegúrate que esta red exista o usa la default de Dokploy
+      - dokploy-network
 
 networks:
-  veterinaria-net:
+  dokploy-network:
     external: true
