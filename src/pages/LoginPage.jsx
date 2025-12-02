@@ -160,6 +160,9 @@ function LoginPage() {
             } else if (roleString.includes('ADMIN')) {
               console.log("Redirecting -> /dashboard/admin");
               navigate('/dashboard/admin');
+            } else if (roleString.includes('DUENIO') || roleString.includes('DUEÑO')) {
+              console.log("Redirecting -> /dashboard/owner");
+              navigate('/dashboard/owner');
             } else {
               console.log("Role not matched. Defaulting -> /dashboard/admin");
               navigate('/dashboard/admin'); 
