@@ -7,11 +7,13 @@ services:
       dockerfile: Dockerfile
     container_name: veterinary-frontend
     restart: always
+  
     ports:
       - "90:80"
-     networks:
+  
+    networks:
       - dokploy-network
+
 networks:
   dokploy-network:
     external: true
-
