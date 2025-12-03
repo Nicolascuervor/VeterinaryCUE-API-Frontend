@@ -14,7 +14,8 @@ import {
   CheckCircle2,
   MoreVertical,
   PawPrint,
-  CalendarPlus
+  CalendarPlus,
+  Users
 } from 'lucide-react';
 
 // UI Components
@@ -45,6 +46,7 @@ import ScheduleManagement from '@/components/ScheduleManagement';
 import ClinicalHistory from '@/components/ClinicalHistory';
 import ProfessionalProfile from '@/components/ProfessionalProfile';
 import AppointmentScheduling from '@/components/AppointmentScheduling';
+import OwnersManagement from '@/components/OwnersManagement';
 
 // Utility for JWT parsing
 const parseJwt = (token) => {
@@ -63,7 +65,7 @@ const VeterinarianDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [appointments, setAppointments] = useState([]);
-  const [activeModule, setActiveModule] = useState('agenda'); // 'agenda', 'consultas', 'horarios', 'historial', 'perfil', 'agendar'
+  const [activeModule, setActiveModule] = useState('agenda'); // 'agenda', 'consultas', 'horarios', 'historial', 'perfil', 'agendar', 'dueños'
   const [stats, setStats] = useState({ pending: 0, completed: 0 });
 
   // Verify Authentication & Role
@@ -258,6 +260,8 @@ const VeterinarianDashboard = () => {
         return <ProfessionalProfile />;
       case 'agendar':
         return <AppointmentScheduling veterinarianId={user?.id} />;
+      case 'dueños':
+        return <OwnersManagement />;
       default:
         return <AgendaView appointments={appointments} isLoading={isLoading} />;
     }
@@ -291,6 +295,7 @@ const VeterinarianDashboard = () => {
              <NavButton active={activeModule === 'agendar'} onClick={() => setActiveModule('agendar')} icon={CalendarPlus} label="Agendar" />
              <NavButton active={activeModule === 'horarios'} onClick={() => setActiveModule('horarios')} icon={CalendarIcon} label="Horarios" />
              <NavButton active={activeModule === 'historial'} onClick={() => setActiveModule('historial')} icon={History} label="Historial" />
+             <NavButton active={activeModule === 'dueños'} onClick={() => setActiveModule('dueños')} icon={Users} label="Dueños" />
              <NavButton active={activeModule === 'perfil'} onClick={() => setActiveModule('perfil')} icon={User} label="Perfil" />
           </nav>
 
