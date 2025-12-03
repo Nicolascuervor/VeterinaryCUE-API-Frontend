@@ -107,15 +107,22 @@ const VeterinarianDashboard = () => {
     fetchAppointments();
   }, [navigate]);
 
-  // Fetch Today's Appointments
+  // Fetch Appointments (all appointments for the veterinarian, not just today)
   const fetchAppointments = async () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('jwtToken');
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const userId = localStorage.getItem('userId') || user?.id;
+      
+      if (!userId) {
+        console.warn("No user ID available, skipping appointment fetch");
+        setIsLoading(false);
+        return;
+      }
       
       try {
-        const response = await fetch(`https://api.veterinariacue.com/api/citas/del-dia?fecha=${today}`, {
+        // Fetch ALL appointments instead of just today's
+        const response = await fetch(`https://api.veterinariacue.com/api/citas/all`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -126,7 +133,14 @@ const VeterinarianDashboard = () => {
           const data = await response.json();
           
           // Filter appointments by veterinarian ID
-          const vetAppointments = data.filter(apt => apt.veterinarianId === parseInt(user?.id));
+          const vetAppointments = data.filter(apt => apt.veterinarianId === parseInt(userId));
+          
+          // Sort by date (upcoming first, then past)
+          vetAppointments.sort((a, b) => {
+            const dateA = new Date(a.fechaHoraInicio || a.fechayhora || 0);
+            const dateB = new Date(b.fechaHoraInicio || b.fechayhora || 0);
+            return dateA - dateB;
+          });
           
           // Enrich appointments with pet and owner names
           const enrichedAppointments = await Promise.all(
@@ -171,71 +185,42 @@ const VeterinarianDashboard = () => {
           
           setAppointments(enrichedAppointments);
           // Calculate stats from real data
-          const pending = enrichedAppointments.filter(a => a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA').length;
-          setStats(prev => ({ ...prev, pending }));
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          const pending = enrichedAppointments.filter(a => {
+            const estado = a.estado;
+            const aptDate = new Date(a.fechaHoraInicio || a.fechayhora);
+            aptDate.setHours(0, 0, 0, 0);
+            return (estado === 'PENDIENTE' || estado === 'CONFIRMADA') && aptDate >= today;
+          }).length;
+          
+          const completed = enrichedAppointments.filter(a => {
+            const estado = a.estado;
+            return estado === 'FINALIZADA' || estado === 'COMPLETADA';
+          }).length;
+          
+          setStats({ pending, completed });
         } else {
           throw new Error('Failed to fetch');
         }
       } catch (err) {
-        console.log("Using mock data because API is unreachable or not set up yet.");
-        // Fallback Mock Data for demonstration
-        const mockAppointments = [
-            { 
-                id: 1, 
-                hora: '09:00', 
-                mascota: 'Max', 
-                propietario: 'Juan Pérez', 
-                motivo: 'Vacunación Anual', 
-                estado: 'COMPLETADA',
-                tipo: 'Consulta General'
-            },
-            { 
-                id: 2, 
-                hora: '10:30', 
-                mascota: 'Luna', 
-                propietario: 'Maria Garcia', 
-                motivo: 'Revisión Post-Cirugía', 
-                estado: 'EN_CURSO',
-                tipo: 'Seguimiento'
-            },
-            { 
-                id: 3, 
-                hora: '11:45', 
-                mascota: 'Rocky', 
-                propietario: 'Carlos Ruiz', 
-                motivo: 'Problemas Digestivos', 
-                estado: 'PENDIENTE',
-                tipo: 'Urgencia'
-            },
-            { 
-                id: 4, 
-                hora: '14:00', 
-                mascota: 'Bella', 
-                propietario: 'Ana Lopez', 
-                motivo: 'Corte de Uñas', 
-                estado: 'PENDIENTE',
-                tipo: 'Estética'
-            },
-            { 
-                id: 5, 
-                hora: '16:15', 
-                mascota: 'Simba', 
-                propietario: 'Pedro Diaz', 
-                motivo: 'Consulta General', 
-                estado: 'CONFIRMADA',
-                tipo: 'Consulta General'
-            }
-        ];
-        setAppointments(mockAppointments);
-        setStats({ pending: 3, completed: 1 });
+        console.error("Error fetching appointments:", err);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las citas.",
+          variant: "destructive"
+        });
+        setAppointments([]);
       }
     } catch (error) {
       console.error("Error fetching appointments:", error);
       toast({
         title: "Error al cargar agenda",
-        description: "No se pudieron cargar las citas del día.",
+        description: "No se pudieron cargar las citas.",
         variant: "destructive"
       });
+      setAppointments([]);
     } finally {
       setIsLoading(false);
     }
@@ -474,12 +459,26 @@ const AgendaView = ({ appointments, isLoading }) => {
     );
   }
 
+  // Filter appointments: show today and future appointments
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const upcomingAppointments = appointments.filter(apt => {
+    const aptDate = new Date(apt.fechaHoraInicio || apt.fechayhora || apt.fechaInicio);
+    aptDate.setHours(0, 0, 0, 0);
+    return aptDate >= today;
+  }).sort((a, b) => {
+    const dateA = new Date(a.fechaHoraInicio || a.fechayhora || a.fechaInicio);
+    const dateB = new Date(b.fechaHoraInicio || b.fechayhora || b.fechaInicio);
+    return dateA - dateB;
+  });
+
   return (
     <Card className="border-none shadow-md bg-white/80 backdrop-blur-sm overflow-hidden">
       <CardHeader className="border-b border-slate-100 bg-white pb-4">
         <div className="flex justify-between items-center">
           <div>
-            <CardTitle className="text-xl text-slate-800">Mi Agenda de Hoy</CardTitle>
+            <CardTitle className="text-xl text-slate-800">Mi Agenda</CardTitle>
             <CardDescription>
               {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </CardDescription>
@@ -491,19 +490,24 @@ const AgendaView = ({ appointments, isLoading }) => {
       </CardHeader>
       <CardContent className="p-0">
         <div className="divide-y divide-slate-100">
-          {appointments.length === 0 ? (
+          {upcomingAppointments.length === 0 ? (
              <div className="p-12 text-center text-slate-500">
-                No hay citas programadas para hoy.
+                <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                <p className="text-base font-medium text-slate-600 mb-1">No hay citas programadas</p>
+                <p className="text-sm text-slate-400">No tienes consultas asignadas para el día de hoy o fechas futuras.</p>
              </div>
           ) : (
-            appointments.map((appointment, index) => (
+            upcomingAppointments.map((appointment, index) => (
               <div 
                 key={appointment.id} 
                 className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center gap-4 group"
               >
                 {/* Time Column */}
                 <div className="min-w-[80px] flex flex-col items-center justify-center sm:border-r sm:border-slate-100 pr-4">
-                  <span className="text-lg font-bold text-slate-700">{appointment.hora || (appointment.fechaInicio ? new Date(appointment.fechaInicio).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--')}</span>
+                  <span className="text-lg font-bold text-slate-700">
+                    {appointment.hora || (appointment.fechaHoraInicio ? new Date(appointment.fechaHoraInicio).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 
+                     (appointment.fechaInicio ? new Date(appointment.fechaInicio).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--'))}
+                  </span>
                   <span className="text-xs text-slate-400">HR</span>
                 </div>
 
@@ -541,7 +545,7 @@ const AgendaView = ({ appointments, isLoading }) => {
         </div>
       </CardContent>
       <CardFooter className="bg-slate-50 py-3 px-6 border-t border-slate-100 text-xs text-slate-500 flex justify-between">
-         <span>Mostrando {appointments.length} citas</span>
+         <span>Mostrando {upcomingAppointments.length} {upcomingAppointments.length === 1 ? 'cita' : 'citas'}</span>
          <span>Actualizado hace un momento</span>
       </CardFooter>
     </Card>
