@@ -34,6 +34,12 @@ function LoginPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Get API base URL from environment variable or use default
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.veterinariacue.com';
+
+  // Get API base URL from environment variable or use default
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.veterinariacue.com';
+
   const handleLogin = async (e) => {
     e.preventDefault();
     
@@ -51,14 +57,23 @@ function LoginPage() {
     setIsLoading(true);
 
     try {
-      console.log("Initiating login request..."); 
-      const response = await fetch('https://api.veterinariacue.com/api/auth/login', {
+      console.log("Initiating login request to:", `${API_BASE_URL}/api/auth/login`); 
+      
+      const loginUrl = `${API_BASE_URL}/api/auth/login`;
+      
+      const response = await fetch(loginUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ 
           correo: email, 
           contrasenia: password 
-        })
+        }),
+        // Add mode and credentials for better CORS handling
+        mode: 'cors',
+        credentials: 'omit'
       });
 
       // Robust response handling
@@ -192,17 +207,60 @@ function LoginPage() {
       }
     } catch (error) {
       console.error("Login error:", error);
-      // Guardar error genérico para debug
-      if (!debugError) {
-        setDebugError({
-          type: 'EXCEPTION',
-          message: error.message,
-          name: error.name,
-        });
+      
+      // Enhanced error handling for network/CORS issues (common in mobile)
+      let errorMessage = error.message || "Error desconocido";
+      let errorType = 'EXCEPTION';
+      
+      // Check for specific error types common in mobile
+      const errorMsgLower = (error.message || '').toLowerCase();
+      if (errorMsgLower.includes('failed to fetch') || 
+          errorMsgLower.includes('load failed') ||
+          errorMsgLower.includes('networkerror') ||
+          errorMsgLower.includes('network request failed') ||
+          errorMsgLower.includes('typeerror: failed to fetch')) {
+        errorType = 'NETWORK_ERROR';
+        errorMessage = 'Error de conexión. Verifica tu conexión a internet y que la API esté disponible.';
+        
+        // Additional diagnostic info for mobile debugging
+        if (!debugError) {
+          setDebugError({
+            type: errorType,
+            message: error.message,
+            url: `${API_BASE_URL}/api/auth/login`,
+            frontendUrl: window.location.origin,
+            protocol: window.location.protocol,
+            suggestion: window.location.protocol === 'http:' 
+              ? 'El frontend está en HTTP y la API en HTTPS. Esto puede causar problemas de "mixed content" en mobile. Considera usar HTTPS para el frontend o configurar un proxy CORS.'
+              : 'Verifica que la API esté accesible desde tu red móvil.'
+          });
+        }
+      } else if (errorMsgLower.includes('cors') || errorMsgLower.includes('cross-origin')) {
+        errorType = 'CORS_ERROR';
+        errorMessage = 'Error de CORS. El servidor no permite peticiones desde este origen.';
+        if (!debugError) {
+          setDebugError({
+            type: errorType,
+            message: error.message,
+            url: `${API_BASE_URL}/api/auth/login`,
+            frontendUrl: window.location.origin
+          });
+        }
+      } else {
+        // Guardar error genérico para debug
+        if (!debugError) {
+          setDebugError({
+            type: errorType,
+            message: error.message,
+            name: error.name,
+            stack: error.stack?.slice(0, 500)
+          });
+        }
       }
+      
       toast({
         title: "Error de acceso",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
