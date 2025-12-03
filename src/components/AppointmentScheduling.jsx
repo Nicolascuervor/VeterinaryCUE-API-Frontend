@@ -147,10 +147,12 @@ const AppointmentScheduling = ({ veterinarianId }) => {
         estadoGeneralMascota: formData.estadoGeneralMascota || 'NORMAL'
       };
 
+      const userId = localStorage.getItem('userId');
       const response = await fetch('https://api.veterinariacue.com/api/citas', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'X-Usuario-Id': userId,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
