@@ -138,11 +138,16 @@ const AppointmentScheduling = ({ veterinarianId }) => {
     try {
       const token = localStorage.getItem('jwtToken');
       
+      // Convertir datetime-local a formato ISO sin conversión de timezone
+      // El input datetime-local devuelve "YYYY-MM-DDTHH:mm" (sin timezone)
+      // Necesitamos enviarlo como "YYYY-MM-DDTHH:mm:00" para LocalDateTime
+      const fechaInicioISO = formData.fechaInicio ? `${formData.fechaInicio}:00` : null;
+      
       const payload = {
         petId: formData.petId,
         veterinarianId: veterinarianId,
         servicioId: formData.servicioId,
-        fechaInicio: new Date(formData.fechaInicio).toISOString(),
+        fechaInicio: fechaInicioISO,
         motivoConsulta: formData.motivoConsulta,
         estadoGeneralMascota: formData.estadoGeneralMascota || 'NORMAL'
       };
@@ -174,13 +179,38 @@ const AppointmentScheduling = ({ veterinarianId }) => {
         });
         setSelectedPet(null);
       } else {
-        const errorText = await response.text();
         let errorMessage = "Error al agendar la cita.";
+        let errorDetails = "";
         
-        if (response.status === 400) {
-          errorMessage = "El doctor no atiende en ese horario.";
-        } else if (response.status === 409) {
-          errorMessage = "Conflicto de horario. Por favor seleccione otra hora.";
+        try {
+          const errorText = await response.text();
+          errorDetails = errorText;
+          
+          // Intentar parsear como JSON si es posible
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.message || errorJson.error || errorMessage;
+          } catch {
+            // Si no es JSON, usar el texto directamente
+            if (errorText.includes("no trabaja") || errorText.includes("jornada laboral")) {
+              errorMessage = "El veterinario no tiene horario configurado para este día/hora.";
+            } else if (errorText.includes("conflicto") || errorText.includes("ocupación")) {
+              errorMessage = "El horario seleccionado ya está ocupado. Por favor seleccione otra hora.";
+            } else if (errorText.includes("descanso")) {
+              errorMessage = "El horario seleccionado coincide con el tiempo de descanso del veterinario.";
+            } else if (errorText.includes("fuera")) {
+              errorMessage = "El horario está fuera del horario laboral del veterinario.";
+            } else {
+              errorMessage = errorText || errorMessage;
+            }
+          }
+        } catch (e) {
+          // Si no se puede leer el error, usar mensajes por código de estado
+          if (response.status === 400) {
+            errorMessage = "El horario seleccionado no es válido. Verifique que el veterinario trabaje en ese día y hora.";
+          } else if (response.status === 409) {
+            errorMessage = "Conflicto de horario. Por favor seleccione otra hora.";
+          }
         }
         
         throw new Error(errorMessage);
