@@ -113,7 +113,7 @@ const OwnerPets = ({ ownerId, onUpdate }) => {
       const payload = {
         ...formData,
         duenioId: ownerId,
-        activo: true
+        active: true
       };
 
       const url = isEditing 
@@ -240,7 +240,7 @@ const OwnerPets = ({ ownerId, onUpdate }) => {
                     </div>
                   </div>
                   <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
-                    {pet.activo ? 'Activa' : 'Inactiva'}
+                    {pet.active !== false ? 'Activa' : 'Inactiva'}
                   </Badge>
                 </div>
               </CardHeader>

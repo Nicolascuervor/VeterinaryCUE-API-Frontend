@@ -299,8 +299,8 @@ const OwnersManagement = () => {
                                     <h5 className="font-semibold text-slate-900">{pet.nombre}</h5>
                                     <p className="text-xs text-slate-500">{pet.especie} • {pet.raza}</p>
                                   </div>
-                                  <Badge variant="outline" className={pet.activo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500'}>
-                                    {pet.activo ? 'Activa' : 'Inactiva'}
+                                  <Badge variant="outline" className={pet.active !== false ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500'}>
+                                    {pet.active !== false ? 'Activa' : 'Inactiva'}
                                   </Badge>
                                 </div>
                                 {pet.fechaNacimiento && (
