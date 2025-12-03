@@ -109,16 +109,20 @@ const VeterinarianDashboard = () => {
 
   // Fetch Appointments (all appointments for the veterinarian, not just today)
   const fetchAppointments = async () => {
+    console.log('📋 [DASHBOARD] ===== INICIANDO CARGA DE CITAS =====');
     setIsLoading(true);
     try {
       const token = localStorage.getItem('jwtToken');
       const userId = localStorage.getItem('userId') || user?.id;
       
       if (!userId) {
-        console.warn("No user ID available, skipping appointment fetch");
+        console.warn('⚠️ [DASHBOARD] No user ID available, skipping appointment fetch');
         setIsLoading(false);
         return;
       }
+      
+      console.log('📋 [DASHBOARD] Usuario ID:', userId);
+      console.log('📋 [DASHBOARD] Obteniendo todas las citas...');
       
       try {
         // Fetch ALL appointments instead of just today's
@@ -129,11 +133,19 @@ const VeterinarianDashboard = () => {
           }
         });
 
+        console.log('📋 [DASHBOARD] Respuesta recibida:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        });
+
         if (response.ok) {
           const data = await response.json();
+          console.log('📋 [DASHBOARD] Total de citas recibidas:', data.length);
           
           // Filter appointments by veterinarian ID
           const vetAppointments = data.filter(apt => apt.veterinarianId === parseInt(userId));
+          console.log('📋 [DASHBOARD] Citas filtradas para veterinario:', vetAppointments.length);
           
           // Sort by date (upcoming first, then past)
           vetAppointments.sort((a, b) => {
@@ -143,13 +155,16 @@ const VeterinarianDashboard = () => {
           });
           
           // Enrich appointments with pet and owner names
+          console.log('📋 [DASHBOARD] Enriqueciendo citas con datos de mascotas y dueños...');
           const enrichedAppointments = await Promise.all(
-            vetAppointments.map(async (apt) => {
+            vetAppointments.map(async (apt, index) => {
+              console.log(`📋 [DASHBOARD] Procesando cita ${index + 1}/${vetAppointments.length} - ID: ${apt.id}`);
               const enriched = { ...apt };
               
               // Fetch pet name
               if (apt.petId) {
                 try {
+                  console.log(`  🐾 [DASHBOARD] Obteniendo datos de mascota ID: ${apt.petId}`);
                   const petResponse = await fetch(`https://api.veterinariacue.com/api/mascotas/${apt.petId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                   });
@@ -157,10 +172,12 @@ const VeterinarianDashboard = () => {
                     const pet = await petResponse.json();
                     enriched.mascota = pet.nombre;
                     enriched.mascotaNombre = pet.nombre;
+                    console.log(`  ✅ [DASHBOARD] Mascota obtenida: ${pet.nombre} (Dueño ID: ${pet.duenioId})`);
                     
                     // Fetch owner name using duenioId from pet
                     if (pet.duenioId) {
                       try {
+                        console.log(`  👤 [DASHBOARD] Obteniendo datos del dueño ID: ${pet.duenioId}`);
                         const ownerResponse = await fetch(`https://api.veterinariacue.com/api/auth/${pet.duenioId}`, {
                           headers: { 'Authorization': `Bearer ${token}` }
                         });
@@ -168,20 +185,38 @@ const VeterinarianDashboard = () => {
                           const owner = await ownerResponse.json();
                           enriched.propietario = `${owner.nombre || ''} ${owner.apellido || ''}`.trim();
                           enriched.ownerName = enriched.propietario;
+                          console.log(`  ✅ [DASHBOARD] Dueño obtenido: ${enriched.propietario} (Correo: ${owner.correo || 'N/A'})`);
+                        } else {
+                          console.warn(`  ⚠️ [DASHBOARD] No se pudo obtener dueño. Status: ${ownerResponse.status}`);
                         }
                       } catch (err) {
-                        console.warn("Could not fetch owner name:", err);
+                        console.warn(`  ⚠️ [DASHBOARD] Error al obtener dueño:`, err);
                       }
+                    } else {
+                      console.warn(`  ⚠️ [DASHBOARD] Mascota ${pet.nombre} no tiene dueñoId`);
                     }
+                  } else {
+                    console.warn(`  ⚠️ [DASHBOARD] No se pudo obtener mascota. Status: ${petResponse.status}`);
                   }
                 } catch (err) {
-                  console.warn("Could not fetch pet name:", err);
+                  console.warn(`  ⚠️ [DASHBOARD] Error al obtener mascota:`, err);
                 }
+              } else {
+                console.warn(`  ⚠️ [DASHBOARD] Cita ${apt.id} no tiene petId`);
               }
               
               return enriched;
             })
           );
+          
+          console.log('✅ [DASHBOARD] Citas enriquecidas:', enrichedAppointments.length);
+          console.log('📋 [DASHBOARD] Resumen de citas:', {
+            total: enrichedAppointments.length,
+            estados: enrichedAppointments.reduce((acc, apt) => {
+              acc[apt.estado] = (acc[apt.estado] || 0) + 1;
+              return acc;
+            }, {})
+          });
           
           setAppointments(enrichedAppointments);
           // Calculate stats from real data
@@ -201,11 +236,15 @@ const VeterinarianDashboard = () => {
           }).length;
           
           setStats({ pending, completed });
+          console.log('📊 [DASHBOARD] Estadísticas:', { pending, completed });
+          console.log('✅ [DASHBOARD] ===== CARGA DE CITAS COMPLETADA =====');
         } else {
+          console.error('❌ [DASHBOARD] Error en respuesta:', response.status, response.statusText);
           throw new Error('Failed to fetch');
         }
       } catch (err) {
-        console.error("Error fetching appointments:", err);
+        console.error('❌ [DASHBOARD] ===== ERROR AL CARGAR CITAS =====');
+        console.error('❌ [DASHBOARD] Error:', err);
         toast({
           title: "Error",
           description: "No se pudieron cargar las citas.",
@@ -214,7 +253,8 @@ const VeterinarianDashboard = () => {
         setAppointments([]);
       }
     } catch (error) {
-      console.error("Error fetching appointments:", error);
+      console.error('❌ [DASHBOARD] ===== ERROR GENERAL =====');
+      console.error('❌ [DASHBOARD] Error:', error);
       toast({
         title: "Error al cargar agenda",
         description: "No se pudieron cargar las citas.",
@@ -223,6 +263,7 @@ const VeterinarianDashboard = () => {
       setAppointments([]);
     } finally {
       setIsLoading(false);
+      console.log('🏁 [DASHBOARD] Proceso de carga finalizado');
     }
   };
 

@@ -126,6 +126,7 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedPet || !veterinarianId) {
+      console.warn('🚫 [AGENDAR CITA] Validación fallida:', { selectedPet, veterinarianId });
       toast({
         title: "Error",
         description: "Por favor selecciona una mascota.",
@@ -133,6 +134,18 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
       });
       return;
     }
+
+    console.log('📅 [AGENDAR CITA] ===== INICIANDO CREACIÓN DE CITA =====');
+    console.log('📅 [AGENDAR CITA] Datos de la cita:', {
+      mascota: selectedPet.nombre,
+      mascotaId: formData.petId,
+      veterinarioId: veterinarianId,
+      servicioId: formData.servicioId,
+      fechaInicio: formData.fechaInicio,
+      motivo: formData.motivoConsulta,
+      estadoGeneral: formData.estadoGeneralMascota || 'NORMAL',
+      usuarioId: localStorage.getItem('userId')
+    });
 
     setIsSubmitting(true);
     try {
@@ -153,6 +166,15 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
       };
 
       const userId = localStorage.getItem('userId');
+      
+      console.log('📅 [AGENDAR CITA] Enviando petición POST a /api/citas');
+      console.log('📅 [AGENDAR CITA] Payload:', payload);
+      console.log('📅 [AGENDAR CITA] Headers:', {
+        'Authorization': `Bearer ${token ? token.substring(0, 20) + '...' : 'NO TOKEN'}`,
+        'X-Usuario-Id': userId,
+        'Content-Type': 'application/json'
+      });
+
       const response = await fetch('https://api.veterinariacue.com/api/citas', {
         method: 'POST',
         headers: {
@@ -163,7 +185,21 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
         body: JSON.stringify(payload)
       });
 
+      console.log('📅 [AGENDAR CITA] Respuesta recibida:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       if (response.ok) {
+        const citaCreada = await response.json();
+        console.log('✅ [AGENDAR CITA] Cita creada exitosamente:', citaCreada);
+        console.log('✅ [AGENDAR CITA] ID de cita:', citaCreada.id);
+        console.log('✅ [AGENDAR CITA] Estado:', citaCreada.estado);
+        console.log('✅ [AGENDAR CITA] Fecha/Hora:', citaCreada.fechaHoraInicio);
+        console.log('📧 [AGENDAR CITA] Nota: El backend debería enviar correos al dueño y veterinario automáticamente');
+        console.log('📅 [AGENDAR CITA] ===== CITA CREADA EXITOSAMENTE =====');
+        
         toast({
           title: "Cita Agendada",
           description: `Cita agendada exitosamente para ${selectedPet.nombre}.`
@@ -180,8 +216,10 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
         setSelectedPet(null);
         
         // Notify parent to refresh appointments list
+        console.log('🔄 [AGENDAR CITA] Actualizando lista de citas...');
         if (onUpdate) {
           onUpdate();
+          console.log('✅ [AGENDAR CITA] Lista de citas actualizada');
         }
       } else {
         let errorMessage = "Error al agendar la cita.";
@@ -221,7 +259,10 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
         throw new Error(errorMessage);
       }
     } catch (error) {
-      console.error("Submit error:", error);
+      console.error('❌ [AGENDAR CITA] ===== ERROR AL CREAR CITA =====');
+      console.error('❌ [AGENDAR CITA] Error:', error);
+      console.error('❌ [AGENDAR CITA] Mensaje:', error.message);
+      console.error('❌ [AGENDAR CITA] Stack:', error.stack);
       toast({
         title: "Error",
         description: error.message || "No se pudo agendar la cita.",
@@ -229,6 +270,7 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
       });
     } finally {
       setIsSubmitting(false);
+      console.log('🏁 [AGENDAR CITA] Proceso finalizado');
     }
   };
 
