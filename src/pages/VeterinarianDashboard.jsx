@@ -125,9 +125,12 @@ const VeterinarianDashboard = () => {
         if (response.ok) {
           const data = await response.json();
           
+          // Filter appointments by veterinarian ID
+          const vetAppointments = data.filter(apt => apt.veterinarianId === parseInt(user?.id));
+          
           // Enrich appointments with pet and owner names
           const enrichedAppointments = await Promise.all(
-            data.map(async (apt) => {
+            vetAppointments.map(async (apt) => {
               const enriched = { ...apt };
               
               // Fetch pet name
@@ -259,7 +262,7 @@ const VeterinarianDashboard = () => {
       case 'perfil':
         return <ProfessionalProfile />;
       case 'agendar':
-        return <AppointmentScheduling veterinarianId={user?.id} />;
+        return <AppointmentScheduling veterinarianId={user?.id} onUpdate={fetchAppointments} />;
       case 'dueños':
         return <OwnersManagement />;
       default:

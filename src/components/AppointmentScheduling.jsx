@@ -23,7 +23,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
-const AppointmentScheduling = ({ veterinarianId }) => {
+const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [filterTerm, setFilterTerm] = useState('');
@@ -178,6 +178,11 @@ const AppointmentScheduling = ({ veterinarianId }) => {
           estadoGeneralMascota: ''
         });
         setSelectedPet(null);
+        
+        // Notify parent to refresh appointments list
+        if (onUpdate) {
+          onUpdate();
+        }
       } else {
         let errorMessage = "Error al agendar la cita.";
         let errorDetails = "";
