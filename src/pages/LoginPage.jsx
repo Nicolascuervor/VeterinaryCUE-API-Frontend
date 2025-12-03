@@ -30,12 +30,15 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [debugError, setDebugError] = useState(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     
+    setDebugError(null);
+
     if (!email || !password) {
       toast({
         title: "Campos requeridos",
@@ -66,6 +69,13 @@ function LoginPage() {
         data = await response.json();
       } else {
         const textData = await response.text();
+        // Guardar detalles crudos para debug en UI (especialmente útil en mobile)
+        setDebugError({
+          type: 'RAW_RESPONSE',
+          status: response.status,
+          contentType,
+          body: textData?.slice(0, 500) || null,
+        });
         if (!response.ok) {
             throw new Error(textData || "Error en el servidor");
         }
@@ -172,10 +182,24 @@ function LoginPage() {
           throw new Error("No se recibió el token de autenticación.");
         }
       } else {
-        throw new Error(data.message || data.error || "Credenciales incorrectas.");
+        // Guardar detalle de error HTTP para debug visible en UI
+        setDebugError({
+          type: 'HTTP_ERROR',
+          status: response.status,
+          body: data,
+        });
+        throw new Error(data.message || data.error || `Error de autenticación (HTTP ${response.status}).`);
       }
     } catch (error) {
       console.error("Login error:", error);
+      // Guardar error genérico para debug
+      if (!debugError) {
+        setDebugError({
+          type: 'EXCEPTION',
+          message: error.message,
+          name: error.name,
+        });
+      }
       toast({
         title: "Error de acceso",
         description: error.message,
@@ -317,6 +341,27 @@ function LoginPage() {
           </form>
         </div>
       </motion.div>
+
+      {/* Bloque de diagnóstico visible también en mobile */}
+      {debugError && (
+        <div className="fixed bottom-2 left-2 right-2 max-w-xl mx-auto z-20">
+          <div className="text-xs bg-black/80 text-amber-200 px-3 py-2 rounded-lg border border-amber-500 space-y-1">
+            <div className="font-semibold">DEBUG LOGIN (solo temporal)</div>
+            <div>Tipo: {debugError.type}</div>
+            {'status' in debugError && (
+              <div>Status HTTP: {debugError.status}</div>
+            )}
+            {debugError.message && (
+              <div>Mensaje: {debugError.message}</div>
+            )}
+            {debugError.body && (
+              <div className="max-h-24 overflow-y-auto break-all">
+                Cuerpo: {typeof debugError.body === 'string' ? debugError.body : JSON.stringify(debugError.body)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
