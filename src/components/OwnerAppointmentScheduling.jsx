@@ -185,6 +185,7 @@ const OwnerAppointmentScheduling = ({ ownerId, onUpdate }) => {
       });
 
       if (response.ok) {
+        console.log('✅ [OWNER AGENDAR] Cita agendada exitosamente');
         toast({
           title: "Cita Agendada",
           description: `Cita agendada exitosamente para ${selectedPet.nombre}.`
@@ -200,7 +201,20 @@ const OwnerAppointmentScheduling = ({ ownerId, onUpdate }) => {
           estadoGeneralMascota: ''
         });
         setSelectedPet(null);
-        if (onUpdate) onUpdate();
+        
+        // Trigger updates
+        if (onUpdate) {
+          onUpdate();
+          console.log('🔄 [OWNER AGENDAR] Actualizando estadísticas del dashboard');
+        }
+        
+        // Refresh appointments list if available
+        if (window.refreshOwnerAppointments) {
+          setTimeout(() => {
+            window.refreshOwnerAppointments();
+            console.log('🔄 [OWNER AGENDAR] Actualizando lista de citas');
+          }, 500);
+        }
       } else {
         let errorMessage = "Error al agendar la cita.";
         

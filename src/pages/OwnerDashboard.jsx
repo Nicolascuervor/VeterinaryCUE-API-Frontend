@@ -165,9 +165,8 @@ const OwnerDashboard = () => {
         setStats(prev => ({ ...prev, mascotas: pets.length || 0 }));
       }
 
-      // Fetch appointments
-      const today = new Date().toISOString().split('T')[0];
-      const appointmentsResponse = await fetch(`https://api.veterinariacue.com/api/citas/del-dia?fecha=${today}`, {
+      // Fetch all appointments and filter by owner
+      const appointmentsResponse = await fetch('https://api.veterinariacue.com/api/citas/all', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -175,9 +174,16 @@ const OwnerDashboard = () => {
         const appointments = await appointmentsResponse.json();
         // Filter by owner
         const ownerAppointments = appointments.filter(apt => apt.duenioId === parseInt(userId));
-        const pending = ownerAppointments.filter(a => 
-          a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA' || a.estado === 'EN_PROGRESO'
-        ).length;
+        
+        // Calculate pending (upcoming appointments)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const pending = ownerAppointments.filter(a => {
+          const aptDate = new Date(a.fechaHoraInicio || a.fechayhora);
+          return aptDate >= today && 
+                 (a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA' || a.estado === 'EN_PROGRESO' || a.estado === 'EN_CURSO');
+        }).length;
+        
         const completed = ownerAppointments.filter(a => 
           a.estado === 'FINALIZADA' || a.estado === 'COMPLETADA'
         ).length;
@@ -208,7 +214,7 @@ const OwnerDashboard = () => {
       case 'historial':
         return <OwnerClinicalHistory ownerId={user?.id} />;
       case 'citas':
-        return <OwnerAppointments ownerId={user?.id} />;
+        return <OwnerAppointments ownerId={user?.id} onUpdate={() => fetchStats(user?.id)} />;
       case 'agendar':
         return <OwnerAppointmentScheduling ownerId={user?.id} onUpdate={() => fetchStats(user?.id)} />;
       case 'tienda':

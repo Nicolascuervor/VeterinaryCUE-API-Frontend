@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const OwnerAppointments = ({ ownerId }) => {
+const OwnerAppointments = ({ ownerId, onUpdate }) => {
   const { toast } = useToast();
   const [appointments, setAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,8 +27,20 @@ const OwnerAppointments = ({ ownerId }) => {
     fetchAppointments();
   }, [ownerId]);
 
+  // Expose fetchAppointments to parent component
+  useEffect(() => {
+    if (onUpdate) {
+      // Store the fetch function in a way that parent can call it
+      window.refreshOwnerAppointments = fetchAppointments;
+    }
+    return () => {
+      delete window.refreshOwnerAppointments;
+    };
+  }, [onUpdate]);
+
   const fetchAppointments = async () => {
     setIsLoading(true);
+    console.log('📋 [OWNER CITAS] Iniciando carga de citas para dueño ID:', ownerId);
     try {
       const token = localStorage.getItem('jwtToken');
       
@@ -39,16 +51,71 @@ const OwnerAppointments = ({ ownerId }) => {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ [OWNER CITAS] Citas recibidas del backend:', data.length);
+        
         // Filter appointments by owner
         const ownerAppointments = data.filter(apt => apt.duenioId === parseInt(ownerId));
+        console.log('📊 [OWNER CITAS] Citas filtradas por dueño (ID: ' + ownerId + '):', ownerAppointments.length);
+        
         // Sort by date (most recent first)
         ownerAppointments.sort((a, b) => {
           const dateA = new Date(a.fechaHoraInicio || a.fechayhora);
           const dateB = new Date(b.fechaHoraInicio || b.fechayhora);
           return dateB - dateA;
         });
-        setAppointments(ownerAppointments);
+        
+        // Enrich appointments with pet and veterinarian names
+        const enrichedAppointments = await Promise.all(
+          ownerAppointments.map(async (apt) => {
+            const enriched = { ...apt };
+            
+            // Fetch pet name
+            if (apt.petId) {
+              try {
+                console.log(`🐾 [OWNER CITAS] Obteniendo datos de mascota ID: ${apt.petId}`);
+                const petResponse = await fetch(`https://api.veterinariacue.com/api/mascotas/${apt.petId}`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (petResponse.ok) {
+                  const pet = await petResponse.json();
+                  enriched.mascota = pet.nombre;
+                  enriched.mascotaNombre = pet.nombre;
+                  console.log(`🐾 [OWNER CITAS] Mascota ID ${apt.petId} - Nombre: ${pet.nombre}`);
+                } else {
+                  console.warn(`❌ [OWNER CITAS] No se pudo obtener mascota ID: ${apt.petId}. Status: ${petResponse.status}`);
+                }
+              } catch (err) {
+                console.warn("❌ [OWNER CITAS] Error al obtener nombre de mascota:", err);
+              }
+            }
+            
+            // Fetch veterinarian name
+            if (apt.veterinarianId) {
+              try {
+                console.log(`👨‍⚕️ [OWNER CITAS] Obteniendo datos de veterinario ID: ${apt.veterinarianId}`);
+                const vetResponse = await fetch(`https://api.veterinariacue.com/api/auth/${apt.veterinarianId}`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (vetResponse.ok) {
+                  const vet = await vetResponse.json();
+                  enriched.veterinarioNombre = `${vet.nombre || ''} ${vet.apellido || ''}`.trim();
+                  console.log(`👨‍⚕️ [OWNER CITAS] Veterinario ID ${apt.veterinarianId} - Nombre: ${enriched.veterinarioNombre}`);
+                } else {
+                  console.warn(`❌ [OWNER CITAS] No se pudo obtener veterinario ID: ${apt.veterinarianId}. Status: ${vetResponse.status}`);
+                }
+              } catch (err) {
+                console.warn("❌ [OWNER CITAS] Error al obtener nombre de veterinario:", err);
+              }
+            }
+            
+            return enriched;
+          })
+        );
+        
+        setAppointments(enrichedAppointments);
+        console.log('📊 [OWNER CITAS] Citas enriquecidas y establecidas:', enrichedAppointments.length);
       } else {
+        console.error('❌ [OWNER CITAS] Falló la carga de citas. Status:', response.status);
         toast({
           title: "Error",
           description: "No se pudieron cargar las citas.",
@@ -56,7 +123,7 @@ const OwnerAppointments = ({ ownerId }) => {
         });
       }
     } catch (error) {
-      console.error("Error fetching appointments:", error);
+      console.error("❌ [OWNER CITAS] Error al cargar citas:", error);
       toast({
         title: "Error",
         description: "Error al cargar las citas.",
@@ -64,6 +131,7 @@ const OwnerAppointments = ({ ownerId }) => {
       });
     } finally {
       setIsLoading(false);
+      console.log('🏁 [OWNER CITAS] Carga de citas finalizada.');
     }
   };
 
