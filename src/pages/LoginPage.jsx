@@ -37,9 +37,6 @@ function LoginPage() {
   // Get API base URL from environment variable or use default
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.veterinariacue.com';
 
-  // Get API base URL from environment variable or use default
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.veterinariacue.com';
-
   const handleLogin = async (e) => {
     e.preventDefault();
     
