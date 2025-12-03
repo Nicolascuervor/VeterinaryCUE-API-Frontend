@@ -82,6 +82,11 @@ const OwnerAppointmentScheduling = ({ ownerId, onUpdate }) => {
   const fetchVeterinarians = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        console.warn("No token available for fetching veterinarians");
+        return;
+      }
+
       // Fetch veterinarians from auth service
       const response = await fetch('https://api.veterinariacue.com/api/auth/active/users', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -89,14 +94,53 @@ const OwnerAppointmentScheduling = ({ ownerId, onUpdate }) => {
 
       if (response.ok) {
         const users = await response.json();
-        const vets = users.filter(user => 
-          user.rol?.toUpperCase().includes('VETERINARIO') || 
-          user.tipoUsuario === 'VETERINARIO'
-        );
+        console.log("📋 [OWNER AGENDAR] Usuarios obtenidos:", users.length);
+        
+        // Filter veterinarians - check multiple possible field names
+        // Based on backend entity, the field is 'userRole' (enum Role)
+        const vets = users.filter(user => {
+          // Check userRole first (primary field from backend)
+          const role = user.userRole || user.role || user.rol || user.tipoUsuario || '';
+          const roleUpper = String(role).toUpperCase();
+          
+          // Check if it's a veterinarian role
+          const isVet = roleUpper === 'ROLE_VETERINARIO' || 
+                       roleUpper === 'VETERINARIO' ||
+                       roleUpper.includes('VETERINARIO') || 
+                       roleUpper.includes('VET');
+          
+          // Also check if user is active
+          const isActive = user.activo !== false;
+          
+          return isVet && isActive;
+        });
+        
+        console.log("👨‍⚕️ [OWNER AGENDAR] Veterinarios filtrados:", vets.length);
+        console.log("👨‍⚕️ [OWNER AGENDAR] Veterinarios:", vets);
+        
+        if (vets.length === 0) {
+          console.warn("⚠️ [OWNER AGENDAR] No se encontraron veterinarios. Estructura de usuarios:", users[0]);
+        }
+        
         setVeterinarians(vets);
+      } else {
+        const errorText = await response.text();
+        console.error("❌ [OWNER AGENDAR] Error al obtener veterinarios:", response.status, errorText);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los veterinarios disponibles.",
+          variant: "destructive"
+        });
+        setVeterinarians([]);
       }
     } catch (error) {
-      console.error("Error fetching veterinarians:", error);
+      console.error("❌ [OWNER AGENDAR] Error fetching veterinarians:", error);
+      toast({
+        title: "Error",
+        description: "Error al cargar los veterinarios. Por favor intenta nuevamente.",
+        variant: "destructive"
+      });
+      setVeterinarians([]);
     }
   };
 
@@ -382,21 +426,39 @@ const OwnerAppointmentScheduling = ({ ownerId, onUpdate }) => {
                 <Label htmlFor="veterinarianId" className="text-slate-900">
                   Veterinario <span className="text-red-500">*</span>
                 </Label>
-                <select 
-                  id="veterinarianId"
-                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-                  value={formData.veterinarianId}
-                  onChange={(e) => setFormData({...formData, veterinarianId: e.target.value})}
-                  required
-                  disabled={!selectedPet}
-                >
-                  <option value="">Seleccionar Veterinario</option>
-                  {veterinarians.map(vet => (
-                    <option key={vet.id} value={vet.id}>
-                      Dr. {vet.nombre} {vet.apellido}
+                {isLoading ? (
+                  <div className="flex items-center gap-2 text-slate-500 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Cargando veterinarios...
+                  </div>
+                ) : (
+                  <select 
+                    id="veterinarianId"
+                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:bg-slate-50 disabled:text-slate-400"
+                    value={formData.veterinarianId}
+                    onChange={(e) => setFormData({...formData, veterinarianId: e.target.value})}
+                    required
+                    disabled={!selectedPet || veterinarians.length === 0}
+                  >
+                    <option value="">
+                      {veterinarians.length === 0 ? 'No hay veterinarios disponibles' : 'Seleccionar Veterinario'}
                     </option>
-                  ))}
-                </select>
+                    {veterinarians.map(vet => (
+                      <option key={vet.id} value={vet.id}>
+                        {vet.nombre && vet.apellido 
+                          ? `Dr. ${vet.nombre} ${vet.apellido}`
+                          : vet.nombre || vet.correo || `Veterinario ID: ${vet.id}`
+                        }
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {veterinarians.length === 0 && !isLoading && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    No hay veterinarios disponibles en este momento.
+                  </p>
+                )}
               </div>
 
               {/* Service Selection */}
