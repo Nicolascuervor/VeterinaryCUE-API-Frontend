@@ -248,7 +248,7 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
                     <div>
                       <CardTitle className="text-lg font-bold text-slate-800">{apt.mascota || apt.mascotaNombre}</CardTitle>
                       <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
-                        <User className="w-3 h-3" /> {apt.propietario || apt.ownerName || 'Dueño'}
+                        <User className="w-3 h-3" /> {apt.propietario || apt.ownerName || apt.nombreDuenio || 'Dueño'}
                       </p>
                     </div>
                     <span className={`text-xs font-bold px-2 py-1 rounded-full border ${getStatusColor(status)}`}>
@@ -264,7 +264,7 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
                   </div>
                   <div className="flex items-center gap-2 text-slate-500">
                     <Clock className="w-4 h-4" />
-                    <span>{apt.hora || (apt.fechaInicio ? new Date(apt.fechaInicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--')}</span>
+                    <span>{apt.fechaHoraInicio ? new Date(apt.fechaHoraInicio).toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'}) : (apt.hora || '--:--')}</span>
                   </div>
                 </CardContent>
 

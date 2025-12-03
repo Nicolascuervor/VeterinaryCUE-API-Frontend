@@ -122,9 +122,51 @@ const VeterinarianDashboard = () => {
 
         if (response.ok) {
           const data = await response.json();
-          setAppointments(data);
+          
+          // Enrich appointments with pet and owner names
+          const enrichedAppointments = await Promise.all(
+            data.map(async (apt) => {
+              const enriched = { ...apt };
+              
+              // Fetch pet name
+              if (apt.petId) {
+                try {
+                  const petResponse = await fetch(`https://api.veterinariacue.com/api/mascotas/${apt.petId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  if (petResponse.ok) {
+                    const pet = await petResponse.json();
+                    enriched.mascota = pet.nombre;
+                    enriched.mascotaNombre = pet.nombre;
+                    
+                    // Fetch owner name using duenioId from pet
+                    if (pet.duenioId) {
+                      try {
+                        const ownerResponse = await fetch(`https://api.veterinariacue.com/api/auth/${pet.duenioId}`, {
+                          headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (ownerResponse.ok) {
+                          const owner = await ownerResponse.json();
+                          enriched.propietario = `${owner.nombre || ''} ${owner.apellido || ''}`.trim();
+                          enriched.ownerName = enriched.propietario;
+                        }
+                      } catch (err) {
+                        console.warn("Could not fetch owner name:", err);
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.warn("Could not fetch pet name:", err);
+                }
+              }
+              
+              return enriched;
+            })
+          );
+          
+          setAppointments(enrichedAppointments);
           // Calculate stats from real data
-          const pending = data.filter(a => a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA').length;
+          const pending = enrichedAppointments.filter(a => a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA').length;
           setStats(prev => ({ ...prev, pending }));
         } else {
           throw new Error('Failed to fetch');
