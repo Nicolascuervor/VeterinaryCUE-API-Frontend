@@ -79,15 +79,27 @@ const OwnerPets = ({ ownerId, onUpdate }) => {
     if (pet) {
       setSelectedPet(pet);
       setIsEditing(true);
+      // Formatear fecha para el input date (YYYY-MM-DD)
+      let fechaFormateada = '';
+      if (pet.fechaNacimiento) {
+        const fecha = new Date(pet.fechaNacimiento);
+        if (!isNaN(fecha.getTime())) {
+          fechaFormateada = fecha.toISOString().split('T')[0];
+        } else if (typeof pet.fechaNacimiento === 'string' && pet.fechaNacimiento.includes('-')) {
+          // Si ya viene en formato YYYY-MM-DD
+          fechaFormateada = pet.fechaNacimiento.split('T')[0].split(' ')[0];
+        }
+      }
+      
       setFormData({
         nombre: pet.nombre || '',
         especie: pet.especie || 'Canino',
         raza: pet.raza || '',
-        fechaNacimiento: pet.fechaNacimiento ? pet.fechaNacimiento.split('T')[0] : '',
-        peso: pet.peso || '',
+        fechaNacimiento: fechaFormateada,
+        peso: pet.peso ? String(pet.peso) : '',
         sexo: pet.sexo || 'Macho',
         color: pet.color || '',
-        observaciones: pet.observaciones || ''
+        observaciones: pet.observaciones || '' // Mantener en el formulario pero no enviar al backend
       });
     } else {
       setSelectedPet(null);
@@ -108,13 +120,50 @@ const OwnerPets = ({ ownerId, onUpdate }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validar que la fecha de nacimiento esté presente (requerida por el backend)
+    if (!formData.fechaNacimiento) {
+      toast({
+        title: "Error de validación",
+        description: "La fecha de nacimiento es obligatoria.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('jwtToken');
+      
+      // Preparar payload según MascotaRequestDTO del backend
+      // El backend espera camelCase: nombre, especie, raza, fechaNacimiento, sexo, color, peso, duenioId
       const payload = {
-        ...formData,
-        duenioId: ownerId,
-        active: true
+        nombre: formData.nombre.trim(),
+        especie: formData.especie,
+        fechaNacimiento: formData.fechaNacimiento, // Formato YYYY-MM-DD (LocalDate)
+        duenioId: parseInt(ownerId)
       };
+      
+      // Campos opcionales - solo agregar si tienen valor
+      if (formData.raza && formData.raza.trim()) {
+        payload.raza = formData.raza.trim();
+      }
+      
+      if (formData.sexo) {
+        payload.sexo = formData.sexo;
+      }
+      
+      if (formData.color && formData.color.trim()) {
+        payload.color = formData.color.trim();
+      }
+      
+      if (formData.peso && formData.peso.trim()) {
+        const pesoValue = parseFloat(formData.peso);
+        if (!isNaN(pesoValue) && pesoValue > 0) {
+          payload.peso = pesoValue;
+        }
+      }
+
+      console.log('📤 [OWNER PETS] Payload a enviar:', payload);
 
       const url = isEditing 
         ? `https://api.veterinariacue.com/api/mascotas/${selectedPet.id}`
@@ -352,12 +401,16 @@ const OwnerPets = ({ ownerId, onUpdate }) => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="fechaNacimiento">Fecha de Nacimiento</Label>
+                <Label htmlFor="fechaNacimiento">
+                  Fecha de Nacimiento <span className="text-red-500">*</span>
+                </Label>
                 <Input 
                   id="fechaNacimiento"
                   type="date"
                   value={formData.fechaNacimiento}
                   onChange={(e) => setFormData({...formData, fechaNacimiento: e.target.value})}
+                  required
+                  max={new Date().toISOString().split('T')[0]} // No puede ser fecha futura
                   className="text-slate-900"
                 />
               </div>
