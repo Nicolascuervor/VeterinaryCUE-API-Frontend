@@ -1,11 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, Stethoscope, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 
 const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Get first day of month and number of days
   const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -81,6 +90,12 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
 
+  // Handle appointment click
+  const handleAppointmentClick = (appointment) => {
+    setSelectedAppointment(appointment);
+    setIsDialogOpen(true);
+  };
+
   // Get status color
   const getStatusColor = (estado) => {
     const s = (estado || '').toUpperCase();
@@ -91,6 +106,18 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
     if (s === 'CANCELADA') return 'bg-red-100 text-red-700 border-red-200';
     if (s === 'NO_ASISTIO' || s === 'NO ASISTIO') return 'bg-red-100 text-red-700 border-red-200';
     return 'bg-slate-100 text-slate-700 border-slate-200';
+  };
+
+  // Get status label
+  const getStatusLabel = (estado) => {
+    const s = (estado || '').toUpperCase();
+    if (s === 'ESPERA') return 'En Espera';
+    if (s === 'CONFIRMADA') return 'Confirmada';
+    if (s === 'PROGRESO' || s === 'EN_PROGRESO' || s === 'EN_CURSO') return 'En Progreso';
+    if (s === 'FINALIZADA' || s === 'COMPLETADA') return 'Finalizada';
+    if (s === 'CANCELADA') return 'Cancelada';
+    if (s === 'NO_ASISTIO' || s === 'NO ASISTIO') return 'No Asistió';
+    return estado;
   };
 
   return (
@@ -182,8 +209,9 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
                     {dayAppointments.slice(0, 3).map((apt) => (
                       <div
                         key={apt.id}
+                        onClick={() => handleAppointmentClick(apt)}
                         className={cn(
-                          "text-xs p-1 rounded border truncate cursor-pointer hover:opacity-80 transition-opacity",
+                          "text-xs p-1 rounded border truncate cursor-pointer hover:opacity-80 hover:shadow-sm transition-all",
                           getStatusColor(apt.estado)
                         )}
                         title={`${new Date(apt.fechaHoraInicio).toLocaleTimeString('es-ES', {
@@ -226,6 +254,144 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
           <Badge className="bg-red-100 text-red-700 border-red-200">Cancelada/No Asistió</Badge>
         </div>
       </div>
+
+      {/* Appointment Details Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <Stethoscope className="w-6 h-6 text-teal-600" />
+              Detalles de la Cita
+            </DialogTitle>
+            <DialogDescription>
+              Información completa de la cita seleccionada
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedAppointment && (
+            <div className="space-y-6 mt-4">
+              {/* Status Badge */}
+              <div className="flex items-center justify-between">
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    "text-sm px-3 py-1",
+                    getStatusColor(selectedAppointment.estado)
+                  )}
+                >
+                  {getStatusLabel(selectedAppointment.estado)}
+                </Badge>
+                <span className="text-sm text-slate-500">
+                  ID: {selectedAppointment.id}
+                </span>
+              </div>
+
+              {/* Service Information */}
+              <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+                <div>
+                  <h3 className="text-sm font-medium text-slate-600 mb-1 flex items-center gap-2">
+                    <Stethoscope className="w-4 h-4" />
+                    Servicio
+                  </h3>
+                  <p className="text-lg font-semibold text-slate-800">
+                    {selectedAppointment.nombreServicio || 'Consulta'}
+                  </p>
+                </div>
+
+                {/* Date and Time */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-600 mb-1 flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4" />
+                      Fecha
+                    </h3>
+                    <p className="text-base text-slate-800">
+                      {new Date(selectedAppointment.fechaHoraInicio).toLocaleDateString('es-ES', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-600 mb-1 flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Hora
+                    </h3>
+                    <p className="text-base text-slate-800">
+                      {new Date(selectedAppointment.fechaHoraInicio).toLocaleTimeString('es-ES', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                      {selectedAppointment.fechaHoraFin && (
+                        <span className="text-slate-500">
+                          {' - '}
+                          {new Date(selectedAppointment.fechaHoraFin).toLocaleTimeString('es-ES', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Duration */}
+                {selectedAppointment.fechaHoraFin && (
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-600 mb-1">
+                      Duración
+                    </h3>
+                    <p className="text-base text-slate-800">
+                      {Math.round(
+                        (new Date(selectedAppointment.fechaHoraFin) - new Date(selectedAppointment.fechaHoraInicio)) / 60000
+                      )} minutos
+                    </p>
+                  </div>
+                )}
+
+                {/* Pet Information */}
+                <div>
+                  <h3 className="text-sm font-medium text-slate-600 mb-1 flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Mascota
+                  </h3>
+                  <p className="text-base text-slate-800">
+                    ID: {selectedAppointment.petId}
+                  </p>
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              {(selectedAppointment.motivo || selectedAppointment.observaciones) && (
+                <div className="space-y-3">
+                  {selectedAppointment.motivo && (
+                    <div>
+                      <h3 className="text-sm font-medium text-slate-600 mb-1">
+                        Motivo de Consulta
+                      </h3>
+                      <p className="text-base text-slate-800 bg-slate-50 rounded-lg p-3">
+                        {selectedAppointment.motivo}
+                      </p>
+                    </div>
+                  )}
+                  {selectedAppointment.observaciones && (
+                    <div>
+                      <h3 className="text-sm font-medium text-slate-600 mb-1">
+                        Observaciones
+                      </h3>
+                      <p className="text-base text-slate-800 bg-slate-50 rounded-lg p-3">
+                        {selectedAppointment.observaciones}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
