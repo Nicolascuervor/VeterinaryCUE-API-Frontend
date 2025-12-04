@@ -1405,8 +1405,13 @@ function AdminDashboard() {
       <aside className="w-64 bg-slate-900 text-white hidden md:flex flex-col fixed h-full overflow-y-auto z-20">
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <Logo className="w-12 h-12" />
-            <h1 className="text-xl font-bold">Vet<span className="text-yellow-400">CUE</span> Admin</h1>
+            <div className="flex-shrink-0">
+              <Logo className="w-12 h-12" />
+            </div>
+            <div className="flex flex-col justify-center">
+              <h1 className="text-xl font-bold leading-tight">Vet<span className="text-yellow-400">CUE</span></h1>
+              <span className="text-slate-400 text-sm leading-tight">Admin</span>
+            </div>
           </div>
         </div>
         <nav className="flex-1 p-4 space-y-1">
