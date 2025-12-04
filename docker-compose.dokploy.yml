@@ -6,17 +6,15 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # URL del API backend (se puede sobrescribir con variable de entorno)
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://api.veterinariacue.com}
     image: veterinary-frontend:latest
     container_name: veterinary-frontend
     restart: always
     ports:
-      # Puerto 90 del host -> Puerto 80 del contenedor (nginx)
       - "90:80"
-    # Para Dokploy: generalmente no necesitas una red externa específica
-    # Dokploy se conectará directamente al puerto expuesto (90)
-    # Si necesitas una red específica de Dokploy, descomenta y ajusta:
+    # Para Dokploy, generalmente no necesitas especificar una red externa
+    # Dokploy se conectará directamente al puerto expuesto
+    # Si necesitas una red específica, descomenta las siguientes líneas:
     # networks:
     #   - default
 
@@ -24,3 +22,4 @@ services:
 #   default:
 #     name: dokploy-network
 #     external: true
+
