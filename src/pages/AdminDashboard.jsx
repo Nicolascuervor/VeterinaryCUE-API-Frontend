@@ -238,6 +238,7 @@ function AdminDashboard() {
       columns: [],
       headers: [],
       fields: []
+    }
   };
 
   const currentConfig = ENTITIES[activeTab];
