@@ -270,7 +270,7 @@ function LoginPage() {
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img 
-          src="/login-background.jpg" 
+          src="/login-background.png" 
           alt="Fondo veterinaria" 
           className="w-full h-full object-cover"
           onError={(e) => {
