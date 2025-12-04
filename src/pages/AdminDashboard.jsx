@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Cat, Calendar, Stethoscope, Building2, ShoppingBag, Warehouse, 
   Plus, Pencil, Trash2, Search, LogOut, LayoutDashboard, Loader2, CalendarClock, Sparkles,
-  Syringe, Scissors, Activity, HeartPulse, FileText, Clock, AlertCircle, Eye, Info, Thermometer
+  Syringe, Scissors, Activity, HeartPulse, FileText, Clock, AlertCircle, Eye, Info, Thermometer,
+  FolderTree
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,8 @@ import { api } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import Logo from '@/components/Logo';
+import InventoryProducts from '@/components/InventoryProducts';
+import InventoryCategories from '@/components/InventoryCategories';
 
 // Helper to parse JWT
 const parseJwt = (token) => {
@@ -218,18 +221,23 @@ function AdminDashboard() {
         { name: 'sku', label: 'SKU', type: 'text' }
       ]
     },
-    inventory: {
-      label: 'Inventario',
-      icon: Warehouse,
-      color: 'text-amber-500',
-      columns: ['product', 'quantity', 'location'],
-      headers: ['Producto', 'Cantidad', 'Ubicación'],
-      fields: [
-        { name: 'product', label: 'Producto', type: 'text' },
-        { name: 'quantity', label: 'Cantidad', type: 'number' },
-        { name: 'location', label: 'Ubicación', type: 'text' }
-      ]
-    }
+    'inventory-products': {
+      label: 'Productos',
+      icon: ShoppingBag,
+      color: 'text-pink-500',
+      customRender: true,
+      columns: [],
+      headers: [],
+      fields: []
+    },
+    'inventory-categories': {
+      label: 'Categorías',
+      icon: FolderTree,
+      color: 'text-teal-500',
+      customRender: true,
+      columns: [],
+      headers: [],
+      fields: []
   };
 
   const currentConfig = ENTITIES[activeTab];
@@ -1444,15 +1452,19 @@ function AdminDashboard() {
             <h2 className="text-2xl font-bold text-slate-800">{currentConfig.label}</h2>
             <p className="text-slate-500 text-sm mt-1">Gestión de {currentConfig.label.toLowerCase()} del sistema</p>
           </div>
-          {activeTab !== 'agendas' && (
+          {activeTab !== 'agendas' && activeTab !== 'inventory-products' && activeTab !== 'inventory-categories' && (
             <Button onClick={handleCreate} className="bg-slate-900 hover:bg-slate-800 gap-2">
               <Plus className="w-4 h-4" /> Nuevo Registro
             </Button>
           )}
         </header>
 
-        {/* Special Render for Agendas */}
-        {activeTab === 'agendas' ? (
+        {/* Special Render for Inventory */}
+        {activeTab === 'inventory-products' ? (
+          <InventoryProducts />
+        ) : activeTab === 'inventory-categories' ? (
+          <InventoryCategories />
+        ) : activeTab === 'agendas' ? (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
               <Label className="mb-2 block">Seleccionar Veterinario</Label>
