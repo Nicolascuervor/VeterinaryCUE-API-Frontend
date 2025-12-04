@@ -53,8 +53,28 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
         const data = await response.json();
         console.log('✅ [OWNER CITAS] Citas recibidas del backend:', data.length);
         
-        // Filter appointments by owner
-        const ownerAppointments = data.filter(apt => apt.duenioId === parseInt(ownerId));
+        // Debug: Ver estructura de la primera cita para identificar el campo correcto
+        if (data.length > 0) {
+          console.log('🔍 [OWNER CITAS] Estructura de la primera cita:', data[0]);
+          console.log('🔍 [OWNER CITAS] Campos disponibles:', Object.keys(data[0]));
+          console.log('🔍 [OWNER CITAS] duenioId:', data[0].duenioId, 'tipo:', typeof data[0].duenioId);
+          console.log('🔍 [OWNER CITAS] duenio_id:', data[0].duenio_id, 'tipo:', typeof data[0].duenio_id);
+          console.log('🔍 [OWNER CITAS] ownerId recibido:', ownerId, 'tipo:', typeof ownerId);
+        }
+        
+        // Filter appointments by owner - verificar múltiples posibles nombres de campo
+        const ownerIdNum = parseInt(ownerId);
+        const ownerAppointments = data.filter(apt => {
+          // Intentar con diferentes nombres de campo posibles
+          const aptOwnerId = apt.duenioId || apt.duenio_id || apt.ownerId || apt.owner_id;
+          const matches = parseInt(aptOwnerId) === ownerIdNum || aptOwnerId === ownerIdNum;
+          
+          if (matches) {
+            console.log('✅ [OWNER CITAS] Cita encontrada - ID:', apt.id, 'Owner ID:', aptOwnerId, 'Tipo:', typeof aptOwnerId);
+          }
+          
+          return matches;
+        });
         console.log('📊 [OWNER CITAS] Citas filtradas por dueño (ID: ' + ownerId + '):', ownerAppointments.length);
         
         // Sort by date (most recent first)
@@ -238,10 +258,10 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      {apt.motivo && (
+                      {(apt.motivo || apt.motivoConsulta || apt.motivo_consulta) && (
                         <div className="flex items-start gap-2 text-sm text-slate-600">
                           <Stethoscope className="w-4 h-4 mt-0.5" />
-                          <span>{apt.motivo}</span>
+                          <span>{apt.motivo || apt.motivoConsulta || apt.motivo_consulta}</span>
                         </div>
                       )}
                       {apt.veterinarioNombre && (
@@ -295,10 +315,10 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      {apt.motivo && (
+                      {(apt.motivo || apt.motivoConsulta || apt.motivo_consulta) && (
                         <div className="flex items-start gap-2 text-sm text-slate-600">
                           <Stethoscope className="w-4 h-4 mt-0.5" />
-                          <span>{apt.motivo}</span>
+                          <span>{apt.motivo || apt.motivoConsulta || apt.motivo_consulta}</span>
                         </div>
                       )}
                       {apt.veterinarioNombre && (
