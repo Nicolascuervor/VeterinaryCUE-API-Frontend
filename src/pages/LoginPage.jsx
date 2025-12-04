@@ -272,15 +272,15 @@ function LoginPage() {
         <img 
           src="/login-background.png" 
           alt="Fondo veterinaria" 
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover brightness-110"
           onError={(e) => {
             // Fallback si la imagen no se encuentra
             e.target.style.display = 'none';
             e.target.parentElement.style.background = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';
           }}
         />
-        {/* Overlay oscuro para mejorar legibilidad del formulario */}
-        <div className="absolute inset-0 bg-slate-900/40"></div>
+        {/* Overlay sutil para mejorar legibilidad del formulario */}
+        <div className="absolute inset-0 bg-slate-900/10"></div>
       </div>
 
       <motion.div 
