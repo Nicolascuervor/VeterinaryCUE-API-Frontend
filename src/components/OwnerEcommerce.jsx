@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import CheckoutDialog from '@/components/CheckoutDialog';
 
 const OwnerEcommerce = ({ ownerId }) => {
   const { toast } = useToast();
@@ -28,6 +29,7 @@ const OwnerEcommerce = ({ ownerId }) => {
   const [filterTerm, setFilterTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('todas');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -522,10 +524,8 @@ const OwnerEcommerce = ({ ownerId }) => {
                   <Button
                     className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
                     onClick={() => {
-                      toast({
-                        title: "Funcionalidad en Desarrollo",
-                        description: "El proceso de pago estará disponible pronto."
-                      });
+                      setIsCartOpen(false);
+                      setIsCheckoutOpen(true);
                     }}
                   >
                     Proceder al Pago
@@ -542,6 +542,23 @@ const OwnerEcommerce = ({ ownerId }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Checkout Dialog */}
+      <CheckoutDialog
+        open={isCheckoutOpen}
+        onOpenChange={setIsCheckoutOpen}
+        ownerId={ownerId}
+        onSuccess={() => {
+          // Recargar carrito y productos después del pago exitoso
+          fetchCart();
+          fetchProducts();
+          setIsCartOpen(false);
+          toast({
+            title: "Compra Exitosa",
+            description: "Tu pedido ha sido procesado correctamente. El carrito se ha limpiado automáticamente.",
+          });
+        }}
+      />
     </div>
   );
 };
