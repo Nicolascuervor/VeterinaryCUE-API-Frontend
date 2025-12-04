@@ -386,8 +386,38 @@ const InventoryProducts = () => {
       return;
     }
 
+    // Validar que sea una imagen
+    if (!selectedFile.type.startsWith('image/')) {
+      toast({
+        title: "Error",
+        description: "El archivo debe ser una imagen (JPEG, PNG, etc.).",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validar tamaño (máximo 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB en bytes
+    if (selectedFile.size > maxSize) {
+      toast({
+        title: "Error",
+        description: "La imagen es demasiado grande. El tamaño máximo es 5MB.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        toast({
+          title: "Error",
+          description: "No se encontró el token de autenticación. Por favor, inicia sesión nuevamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const formData = new FormData();
       formData.append('file', selectedFile);
 
@@ -397,12 +427,14 @@ const InventoryProducts = () => {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
+            // NO establecer Content-Type manualmente - el navegador lo hace automáticamente para FormData
           },
           body: formData
         }
       );
 
       if (response.ok) {
+        const result = await response.text(); // El backend devuelve un string con la URL
         toast({
           title: "Imagen Subida",
           description: "La imagen ha sido subida correctamente."
@@ -412,13 +444,36 @@ const InventoryProducts = () => {
         setCurrentProduct(null);
         setSelectedFile(null);
       } else {
-        throw new Error("Error al subir la imagen");
+        // Intentar obtener el mensaje de error del backend
+        let errorMessage = "Error al subir la imagen";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          // Si no se puede parsear como JSON, usar el texto
+          const errorText = await response.text();
+          if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+        
+        console.error("Error uploading image:", {
+          status: response.status,
+          statusText: response.statusText,
+          message: errorMessage
+        });
+        
+        toast({
+          title: "Error",
+          description: errorMessage || `Error ${response.status}: ${response.statusText}`,
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error("Error uploading image:", error);
       toast({
         title: "Error",
-        description: "No se pudo subir la imagen.",
+        description: error.message || "No se pudo subir la imagen. Verifica tu conexión e intenta nuevamente.",
         variant: "destructive"
       });
     }
