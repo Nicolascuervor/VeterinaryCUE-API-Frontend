@@ -140,12 +140,13 @@ const ClinicalHistory = () => {
     
     try {
       const token = localStorage.getItem('jwtToken');
-      const userId = localStorage.getItem('userId'); // Assuming userId is stored
+      
+      // Formatear fecha como YYYY-MM-DD
+      const today = new Date();
+      const fechaFormateada = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       
       const payload = {
-        mascotaId: selectedPet.id,
-        veterinarioId: userId, // Or derive from token on backend
-        fecha: new Date().toISOString(),
+        fecha: fechaFormateada,
         diagnostico: newRecord.diagnostico,
         tratamiento: newRecord.tratamiento,
         peso: parseFloat(newRecord.peso),
@@ -156,7 +157,8 @@ const ClinicalHistory = () => {
         medicamentosRecetados: newRecord.medicamentosRecetados
       };
 
-      const response = await fetch('https://api.veterinariacue.com/api/historial-clinico', {
+      // Usar el nuevo endpoint con petId en la URL
+      const response = await fetch(`https://api.veterinariacue.com/api/historial-clinico/mascota/${selectedPet.id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
