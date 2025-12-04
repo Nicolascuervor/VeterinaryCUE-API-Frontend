@@ -224,10 +224,10 @@ const VeterinarianDashboard = () => {
           today.setHours(0, 0, 0, 0);
           
           const pending = enrichedAppointments.filter(a => {
-            const estado = a.estado;
+            const estado = (a.estado || '').toUpperCase();
             const aptDate = new Date(a.fechaHoraInicio || a.fechayhora);
             aptDate.setHours(0, 0, 0, 0);
-            return (estado === 'PENDIENTE' || estado === 'CONFIRMADA') && aptDate >= today;
+            return (estado === 'ESPERA' || estado === 'PENDIENTE' || estado === 'CONFIRMADA') && aptDate >= today;
           }).length;
           
           const completed = enrichedAppointments.filter(a => {
@@ -297,7 +297,10 @@ const VeterinarianDashboard = () => {
   };
 
   // Helper: Next Appointment
-  const nextAppointment = appointments.find(a => a.estado === 'PENDIENTE' || a.estado === 'EN_CURSO' || a.estado === 'CONFIRMADA' || a.estado === 'EN_PROGRESO');
+  const nextAppointment = appointments.find(a => {
+    const estado = (a.estado || '').toUpperCase();
+    return estado === 'ESPERA' || estado === 'PENDIENTE' || estado === 'EN_CURSO' || estado === 'CONFIRMADA' || estado === 'EN_PROGRESO';
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">

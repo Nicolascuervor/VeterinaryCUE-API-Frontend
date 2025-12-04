@@ -181,7 +181,7 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
 
   const getStatusColor = (status) => {
     const s = (status || '').toUpperCase();
-    if (s === 'CONFIRMADA' || s === 'PENDIENTE') return 'bg-blue-100 text-blue-800 border-blue-200';
+    if (s === 'ESPERA' || s === 'CONFIRMADA' || s === 'PENDIENTE') return 'bg-blue-100 text-blue-800 border-blue-200';
     if (s === 'EN_PROGRESO' || s === 'EN_CURSO') return 'bg-amber-100 text-amber-800 border-amber-200';
     if (s === 'FINALIZADA' || s === 'COMPLETADA') return 'bg-green-100 text-green-800 border-green-200';
     if (s === 'CANCELADA' || s === 'NO_ASISTIO') return 'bg-red-100 text-red-800 border-red-200';
@@ -190,6 +190,7 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
 
   const getStatusLabel = (status) => {
     const s = (status || '').toUpperCase();
+    if (s === 'ESPERA') return 'En Espera';
     if (s === 'CONFIRMADA') return 'Confirmada';
     if (s === 'PENDIENTE') return 'Pendiente';
     if (s === 'EN_PROGRESO' || s === 'EN_CURSO') return 'En Progreso';
@@ -203,7 +204,7 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
     if (filter === 'todas') return true;
     const status = (apt.estado || '').toUpperCase();
     if (filter === 'pendientes') {
-      return status === 'PENDIENTE' || status === 'CONFIRMADA' || status === 'EN_PROGRESO' || status === 'EN_CURSO';
+      return status === 'ESPERA' || status === 'PENDIENTE' || status === 'CONFIRMADA' || status === 'EN_PROGRESO' || status === 'EN_CURSO';
     }
     if (filter === 'completadas') {
       return status === 'FINALIZADA' || status === 'COMPLETADA';
@@ -216,7 +217,8 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
 
   const upcomingAppointments = filteredAppointments.filter(apt => {
     const aptDate = new Date(apt.fechaHoraInicio || apt.fechayhora);
-    return aptDate >= new Date() && (apt.estado === 'PENDIENTE' || apt.estado === 'CONFIRMADA');
+    const status = (apt.estado || '').toUpperCase();
+    return aptDate >= new Date() && (status === 'ESPERA' || status === 'PENDIENTE' || status === 'CONFIRMADA' || status === 'EN_PROGRESO' || status === 'EN_CURSO');
   });
 
   const pastAppointments = filteredAppointments.filter(apt => {

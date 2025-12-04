@@ -210,10 +210,10 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
   // Helper to check status compatibility (English/Spanish/Legacy)
   const getStatusColor = (status) => {
     const s = (status || '').toUpperCase();
-    if (s === 'CONFIRMADA' || s === 'PENDIENTE') return 'bg-blue-100 text-blue-800 border-blue-200';
+    if (s === 'ESPERA' || s === 'CONFIRMADA' || s === 'PENDIENTE') return 'bg-blue-100 text-blue-800 border-blue-200';
     if (s === 'EN_PROGRESO' || s === 'EN_CURSO') return 'bg-amber-100 text-amber-800 border-amber-200';
     if (s === 'FINALIZADA' || s === 'COMPLETADA') return 'bg-green-100 text-green-800 border-green-200';
-    if (s === 'CANCELADA') return 'bg-red-100 text-red-800 border-red-200';
+    if (s === 'CANCELADA' || s === 'NO_ASISTIO') return 'bg-red-100 text-red-800 border-red-200';
     return 'bg-slate-100 text-slate-800';
   };
 
@@ -243,13 +243,13 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
         const estado = (apt.estado || '').toUpperCase();
         switch (statusFilter) {
           case 'pendientes':
-            return estado === 'CONFIRMADA' || estado === 'PENDIENTE';
+            return estado === 'ESPERA' || estado === 'CONFIRMADA' || estado === 'PENDIENTE';
           case 'en_progreso':
             return estado === 'EN_PROGRESO' || estado === 'EN_CURSO';
           case 'finalizadas':
             return estado === 'FINALIZADA' || estado === 'COMPLETADA';
           case 'canceladas':
-            return estado === 'CANCELADA';
+            return estado === 'CANCELADA' || estado === 'NO_ASISTIO';
           default:
             return true;
         }
@@ -413,7 +413,7 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
         ) : (
           filteredAppointments.map((apt) => {
             const status = (apt.estado || '').toUpperCase();
-            const isPending = status === 'CONFIRMADA' || status === 'PENDIENTE';
+            const isPending = status === 'ESPERA' || status === 'CONFIRMADA' || status === 'PENDIENTE';
             const isInProgress = status === 'EN_PROGRESO' || status === 'EN_CURSO';
             const isFinished = status === 'FINALIZADA' || status === 'COMPLETADA';
 
