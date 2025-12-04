@@ -81,8 +81,8 @@ const AvailabilityCalendar = ({ veterinarianId, onTimeSelect, selectedDateTime, 
     fetchCalendarData();
   }, [veterinarianId, currentMonth]);
 
-  // Calcular slots disponibles para una fecha específica
-  const calculateAvailableSlots = (date) => {
+  // Calcular todos los slots (disponibles y ocupados) para una fecha específica
+  const calculateAllSlots = (date) => {
     if (!calendarData) return [];
 
     const dayOfWeek = date.getDay(); // 0=Dom, 1=Lun, etc.
@@ -125,19 +125,22 @@ const AvailabilityCalendar = ({ veterinarianId, onTimeSelect, selectedDateTime, 
 
       if (!isInBreak) {
         // Verificar si el slot está ocupado
-        const isOccupied = calendarData.ocupaciones?.some(ocup => {
+        const ocupacion = calendarData.ocupaciones?.find(ocup => {
           const ocupStart = new Date(ocup.fechaInicio);
           const ocupEnd = new Date(ocup.fechaFin);
           return (currentTime < ocupEnd && slotEnd > ocupStart);
         });
 
-        if (!isOccupied) {
-          // Verificar que no sea en el pasado
-          const now = new Date();
-          if (currentTime > now) {
-            slots.push(new Date(currentTime));
-          }
-        }
+        // Verificar que no sea en el pasado
+        const now = new Date();
+        const isPast = currentTime <= now;
+
+        slots.push({
+          time: new Date(currentTime),
+          isOccupied: !!ocupacion,
+          isPast: isPast,
+          ocupacion: ocupacion || null
+        });
       }
 
       currentTime = new Date(currentTime.getTime() + slotInterval * 60000);
@@ -156,10 +159,10 @@ const AvailabilityCalendar = ({ veterinarianId, onTimeSelect, selectedDateTime, 
     };
   };
 
-  // Cuando se selecciona una fecha, calcular los slots disponibles
+  // Cuando se selecciona una fecha, calcular todos los slots
   useEffect(() => {
     if (selectedDate) {
-      const slots = calculateAvailableSlots(selectedDate);
+      const slots = calculateAllSlots(selectedDate);
       setAvailableSlots(slots);
     } else {
       setAvailableSlots([]);
@@ -226,8 +229,20 @@ const AvailabilityCalendar = ({ veterinarianId, onTimeSelect, selectedDateTime, 
   };
 
   const handleTimeSlotClick = (slot) => {
+    // No permitir seleccionar slots ocupados o en el pasado
+    if (slot.isOccupied || slot.isPast) {
+      toast({
+        title: "Horario no disponible",
+        description: slot.isOccupied 
+          ? "Este horario ya está ocupado. Por favor selecciona otro horario disponible."
+          : "No puedes seleccionar un horario en el pasado.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (onTimeSelect) {
-      onTimeSelect(slot);
+      onTimeSelect(slot.time);
     }
   };
 
@@ -331,31 +346,69 @@ const AvailabilityCalendar = ({ veterinarianId, onTimeSelect, selectedDateTime, 
 
             {availableSlots.length === 0 ? (
               <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-lg">
-                <p>No hay horarios disponibles para este día.</p>
+                <p>No hay horarios configurados para este día.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-64 overflow-y-auto">
-                {availableSlots.map((slot, index) => {
-                  const isSelected = selectedDateTime && 
-                    slot.getTime() === new Date(selectedDateTime).getTime();
-                  
-                  return (
-                    <Button
-                      key={index}
-                      variant={isSelected ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handleTimeSlotClick(slot)}
-                      className={`
-                        ${isSelected 
-                          ? 'bg-teal-600 text-white hover:bg-teal-700' 
-                          : 'hover:bg-teal-50 hover:border-teal-300'
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-64 overflow-y-auto">
+                  {availableSlots.map((slot, index) => {
+                    const isSelected = selectedDateTime && 
+                      slot.time.getTime() === new Date(selectedDateTime).getTime();
+                    const isAvailable = !slot.isOccupied && !slot.isPast;
+                    
+                    return (
+                      <Button
+                        key={index}
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleTimeSlotClick(slot)}
+                        disabled={!isAvailable}
+                        className={`
+                          ${isSelected 
+                            ? 'bg-teal-600 text-white hover:bg-teal-700' 
+                            : ''
+                          }
+                          ${!isSelected && isAvailable
+                            ? 'hover:bg-teal-50 hover:border-teal-300'
+                            : ''
+                          }
+                          ${slot.isOccupied
+                            ? 'bg-red-50 text-red-600 border-red-200 cursor-not-allowed opacity-75'
+                            : ''
+                          }
+                          ${slot.isPast && !slot.isOccupied
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-50'
+                            : ''
+                          }
+                        `}
+                        title={slot.isOccupied 
+                          ? 'Horario ocupado' 
+                          : slot.isPast 
+                            ? 'Horario en el pasado' 
+                            : 'Horario disponible'
                         }
-                      `}
-                    >
-                      {formatTime(slot)}
-                    </Button>
-                  );
-                })}
+                      >
+                        {formatTime(slot.time)}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                {/* Leyenda */}
+                <div className="flex items-center gap-4 text-xs text-slate-500 pt-2 border-t">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded border border-teal-300 bg-white"></div>
+                    <span>Disponible</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded border border-red-200 bg-red-50"></div>
+                    <span>Ocupado</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded border border-slate-200 bg-slate-100"></div>
+                    <span>Pasado</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
