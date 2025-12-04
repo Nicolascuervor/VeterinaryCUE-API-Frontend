@@ -6,6 +6,7 @@ import LoginPage from '@/pages/LoginPage';
 import AdminDashboard from '@/pages/AdminDashboard';
 import VeterinarianDashboard from '@/pages/VeterinarianDashboard';
 import OwnerDashboard from '@/pages/OwnerDashboard';
+import ConfirmAppointmentPage from '@/pages/ConfirmAppointmentPage';
 import { Toaster } from '@/components/ui/toaster';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
         <Route path="/dashboard/admin" element={<AdminDashboard />} />
         <Route path="/dashboard/veterinarian" element={<VeterinarianDashboard />} />
         <Route path="/dashboard/owner" element={<OwnerDashboard />} />
+        <Route path="/confirmar-cita/:token" element={<ConfirmAppointmentPage />} />
         
         {/* Redirect generic dashboard based on role logic (simplified here) */}
         {/* This route will only be hit if someone directly navigates to /dashboard without a role-based redirect from login. */}
