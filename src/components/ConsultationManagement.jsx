@@ -1,6 +1,6 @@
 
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Play, 
   CheckCircle, 
@@ -14,7 +14,10 @@ import {
   Stethoscope,
   User,
   Weight,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Filter,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +35,11 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
   const [isNoShowDialogOpen, setIsNoShowDialogOpen] = useState(false);
   const [pendingNoShowAppointment, setPendingNoShowAppointment] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Search and Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('todas'); // 'todas', 'pendientes', 'en_progreso', 'finalizadas', 'canceladas'
+  const [dateFilter, setDateFilter] = useState('todas'); // 'todas', 'hoy', 'esta_semana', 'este_mes'
 
   // Form State for Medical Data
   const [medicalData, setMedicalData] = useState({
@@ -209,6 +217,82 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
     return 'bg-slate-100 text-slate-800';
   };
 
+  // Filter and search logic
+  const filteredAppointments = useMemo(() => {
+    let filtered = [...appointments];
+
+    // Search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(apt => {
+        const mascota = (apt.mascota || apt.mascotaNombre || '').toLowerCase();
+        const propietario = (apt.propietario || apt.ownerName || apt.nombreDuenio || '').toLowerCase();
+        const motivo = (apt.motivo || apt.motivoConsulta || '').toLowerCase();
+        const estado = (apt.estado || '').toLowerCase();
+        
+        return mascota.includes(searchLower) || 
+               propietario.includes(searchLower) || 
+               motivo.includes(searchLower) ||
+               estado.includes(searchLower);
+      });
+    }
+
+    // Status filter
+    if (statusFilter !== 'todas') {
+      filtered = filtered.filter(apt => {
+        const estado = (apt.estado || '').toUpperCase();
+        switch (statusFilter) {
+          case 'pendientes':
+            return estado === 'CONFIRMADA' || estado === 'PENDIENTE';
+          case 'en_progreso':
+            return estado === 'EN_PROGRESO' || estado === 'EN_CURSO';
+          case 'finalizadas':
+            return estado === 'FINALIZADA' || estado === 'COMPLETADA';
+          case 'canceladas':
+            return estado === 'CANCELADA';
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Date filter
+    if (dateFilter !== 'todas') {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      filtered = filtered.filter(apt => {
+        const aptDate = new Date(apt.fechaHoraInicio || apt.fechayhora || apt.fechaInicio);
+        aptDate.setHours(0, 0, 0, 0);
+        
+        switch (dateFilter) {
+          case 'hoy':
+            return aptDate.getTime() === today.getTime();
+          case 'esta_semana':
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay()); // Domingo de esta semana
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6); // Sábado de esta semana
+            return aptDate >= weekStart && aptDate <= weekEnd;
+          case 'este_mes':
+            return aptDate.getMonth() === today.getMonth() && 
+                   aptDate.getFullYear() === today.getFullYear();
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Sort by date (upcoming first)
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.fechaHoraInicio || a.fechayhora || a.fechaInicio || 0);
+      const dateB = new Date(b.fechaHoraInicio || b.fechayhora || b.fechaInicio || 0);
+      return dateA - dateB;
+    });
+
+    return filtered;
+  }, [appointments, searchTerm, statusFilter, dateFilter]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -221,17 +305,113 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
         </Badge>
       </div>
 
+      {/* Search and Filter Bar */}
+      <Card className="bg-white shadow-sm">
+        <CardContent className="p-4">
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Buscar por mascota, dueño, motivo o estado..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-10 text-slate-900"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-slate-500" />
+                <span className="text-sm font-medium text-slate-700">Filtros:</span>
+              </div>
+
+              {/* Status Filter */}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="statusFilter" className="text-sm text-slate-600">Estado:</Label>
+                <select
+                  id="statusFilter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="flex h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="todas">Todas</option>
+                  <option value="pendientes">Pendientes</option>
+                  <option value="en_progreso">En Progreso</option>
+                  <option value="finalizadas">Finalizadas</option>
+                  <option value="canceladas">Canceladas</option>
+                </select>
+              </div>
+
+              {/* Date Filter */}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="dateFilter" className="text-sm text-slate-600">Fecha:</Label>
+                <select
+                  id="dateFilter"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="flex h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="todas">Todas</option>
+                  <option value="hoy">Hoy</option>
+                  <option value="esta_semana">Esta Semana</option>
+                  <option value="este_mes">Este Mes</option>
+                </select>
+              </div>
+
+              {/* Clear Filters Button */}
+              {(searchTerm || statusFilter !== 'todas' || dateFilter !== 'todas') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('todas');
+                    setDateFilter('todas');
+                  }}
+                  className="text-slate-600 hover:text-slate-800"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Limpiar Filtros
+                </Button>
+              )}
+
+              {/* Results Count */}
+              <div className="ml-auto text-sm text-slate-500">
+                {filteredAppointments.length} de {appointments.length} citas
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {appointments.length === 0 ? (
+        {filteredAppointments.length === 0 ? (
           <div className="col-span-full text-center py-12 bg-white rounded-xl border border-dashed border-slate-200">
             <div className="mx-auto w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
               <CalendarIcon className="w-8 h-8 text-slate-300" />
             </div>
-            <h3 className="text-lg font-medium text-slate-900">No hay citas programadas</h3>
-            <p className="text-slate-500">No tienes consultas asignadas para el día de hoy.</p>
+            <h3 className="text-lg font-medium text-slate-900">
+              {appointments.length === 0 ? 'No hay citas programadas' : 'No se encontraron citas'}
+            </h3>
+            <p className="text-slate-500">
+              {appointments.length === 0 
+                ? 'No tienes consultas asignadas.' 
+                : 'Intenta ajustar los filtros de búsqueda.'}
+            </p>
           </div>
         ) : (
-          appointments.map((apt) => {
+          filteredAppointments.map((apt) => {
             const status = (apt.estado || '').toUpperCase();
             const isPending = status === 'CONFIRMADA' || status === 'PENDIENTE';
             const isInProgress = status === 'EN_PROGRESO' || status === 'EN_CURSO';
