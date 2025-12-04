@@ -507,13 +507,21 @@ const AgendaView = ({ appointments, isLoading }) => {
       setIsLoadingCalendar(true);
       const token = localStorage.getItem('jwtToken');
       
-      // Si no hay filtros específicos, cargar todas las citas futuras/pendientes
-      // Haciendo peticiones para cada estado válido
+      // Determinar qué estados cargar
+      let statesToFetch = [];
+      
       if (!statuses || statuses.length === 0) {
+        // Si no hay filtros específicos, cargar todas las citas futuras/pendientes
         // Estados futuros/pendientes según el backend
-        const futureStatuses = ['ESPERA', 'CONFIRMADA', 'EN_PROGRESO'];
-        
-        const promises = futureStatuses.map(status => 
+        statesToFetch = ['ESPERA', 'CONFIRMADA', 'EN_PROGRESO'];
+      } else {
+        // Usar los estados proporcionados
+        statesToFetch = statuses;
+      }
+      
+      // Hacer peticiones para cada estado y combinar resultados
+      if (statesToFetch.length > 0) {
+        const promises = statesToFetch.map(status => 
           fetch(`https://api.veterinariacue.com/api/citas/veterinario/calendario?estado=${status}`, {
             headers: {
               'Authorization': `Bearer ${token}`
@@ -545,38 +553,8 @@ const AgendaView = ({ appointments, isLoading }) => {
         });
         setCalendarAppointments(uniqueAppointments);
       } else {
-        // Hacer peticiones para cada estado filtrado y combinar resultados
-        const promises = statuses.map(status => 
-          fetch(`https://api.veterinariacue.com/api/citas/veterinario/calendario?estado=${status}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }).then(res => {
-            if (res.ok) {
-              return res.json();
-            } else {
-              console.warn(`Error al cargar citas con estado ${status}:`, res.status);
-              return [];
-            }
-          }).catch(err => {
-            console.warn(`Error al cargar citas con estado ${status}:`, err);
-            return [];
-          })
-        );
-
-        const results = await Promise.all(promises);
-        // Combinar y eliminar duplicados por ID
-        const allAppointments = results.flat();
-        const uniqueAppointments = allAppointments.filter((apt, index, self) =>
-          index === self.findIndex(a => a.id === apt.id)
-        );
-        // Ordenar por fecha ascendente (más próximas primero)
-        uniqueAppointments.sort((a, b) => {
-          const dateA = new Date(a.fechaHoraInicio);
-          const dateB = new Date(b.fechaHoraInicio);
-          return dateA - dateB;
-        });
-        setCalendarAppointments(uniqueAppointments);
+        // Si no hay estados para cargar, establecer array vacío
+        setCalendarAppointments([]);
       }
     } catch (error) {
       console.error('Error fetching calendar:', error);
@@ -592,8 +570,11 @@ const AgendaView = ({ appointments, isLoading }) => {
 
   const handleOpenCalendar = () => {
     setIsCalendarOpen(true);
-    // Cargar todas las citas futuras/pendientes por defecto (sin filtros)
-    fetchCalendarAppointments();
+    // Cargar todas las citas correspondientes a los estados seleccionados por defecto
+    // Los grupos por defecto son: ESPERA, CONFIRMADA, PROGRESO, FINALIZADA, CANCELADA
+    // Que se mapean a: ESPERA, CONFIRMADA, EN_PROGRESO, FINALIZADA, CANCELADA, NO_ASISTIO
+    const defaultStatuses = ['ESPERA', 'CONFIRMADA', 'EN_PROGRESO', 'FINALIZADA', 'CANCELADA', 'NO_ASISTIO'];
+    fetchCalendarAppointments(defaultStatuses);
   };
 
   if (isLoading) {
