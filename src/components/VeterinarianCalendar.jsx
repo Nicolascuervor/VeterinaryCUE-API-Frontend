@@ -11,23 +11,18 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 
-const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
+const VeterinarianCalendar = ({ appointments = [], isLoading = false, onFilterChange }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   // Estado filters - todos seleccionados por defecto
-  const [selectedStatuses, setSelectedStatuses] = useState([
+  const [selectedStatusGroups, setSelectedStatusGroups] = useState([
     'ESPERA',
     'CONFIRMADA',
     'PROGRESO',
-    'EN_PROGRESO',
-    'EN_CURSO',
     'FINALIZADA',
-    'COMPLETADA',
-    'CANCELADA',
-    'NO_ASISTIO',
-    'NO ASISTIO'
+    'CANCELADA'
   ]);
 
   // Get first day of month and number of days
@@ -49,18 +44,10 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
     return days;
   }, [startDate, endDate]);
 
-  // Filter appointments by selected statuses
-  const filteredAppointments = useMemo(() => {
-    return appointments.filter(apt => {
-      const estado = (apt.estado || '').toUpperCase();
-      return selectedStatuses.includes(estado);
-    });
-  }, [appointments, selectedStatuses]);
-
   // Group appointments by date
   const appointmentsByDate = useMemo(() => {
     const grouped = {};
-    filteredAppointments.forEach(apt => {
+    appointments.forEach(apt => {
       const date = new Date(apt.fechaHoraInicio);
       const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
       if (!grouped[dateKey]) {
@@ -69,7 +56,7 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
       grouped[dateKey].push(apt);
     });
     return grouped;
-  }, [filteredAppointments]);
+  }, [appointments]);
 
   // Get appointments for a specific date
   const getAppointmentsForDate = (date) => {
@@ -142,42 +129,44 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
     return estado;
   };
 
+  // Map status groups to backend states
+  const getStatusGroupBackendStates = (statusGroup) => {
+    const statusMap = {
+      'ESPERA': ['ESPERA'],
+      'CONFIRMADA': ['CONFIRMADA'],
+      'PROGRESO': ['EN_PROGRESO', 'PROGRESO'],
+      'FINALIZADA': ['FINALIZADA'],
+      'CANCELADA': ['CANCELADA', 'NO_ASISTIO']
+    };
+    return statusMap[statusGroup] || [];
+  };
+
   // Toggle status filter
   const toggleStatusFilter = (statusGroup) => {
-    setSelectedStatuses(prev => {
-      const statusMap = {
-        'ESPERA': ['ESPERA'],
-        'CONFIRMADA': ['CONFIRMADA'],
-        'PROGRESO': ['PROGRESO', 'EN_PROGRESO', 'EN_CURSO'],
-        'FINALIZADA': ['FINALIZADA', 'COMPLETADA'],
-        'CANCELADA': ['CANCELADA', 'NO_ASISTIO', 'NO ASISTIO']
-      };
-
-      const statusesToToggle = statusMap[statusGroup] || [];
-      const allSelected = statusesToToggle.every(s => prev.includes(s));
+    setSelectedStatusGroups(prev => {
+      const isSelected = prev.includes(statusGroup);
+      const newGroups = isSelected
+        ? prev.filter(g => g !== statusGroup)
+        : [...prev, statusGroup];
       
-      if (allSelected) {
-        // Remove all statuses in this group
-        return prev.filter(s => !statusesToToggle.includes(s));
-      } else {
-        // Add all statuses in this group
-        return [...new Set([...prev, ...statusesToToggle])];
+      // Notify parent component to refetch with new filters
+      if (onFilterChange) {
+        // Si no hay grupos seleccionados, pasar null para cargar todas las citas
+        if (newGroups.length === 0) {
+          onFilterChange(null);
+        } else {
+          const statesToFetch = newGroups.flatMap(group => getStatusGroupBackendStates(group));
+          onFilterChange(statesToFetch);
+        }
       }
+      
+      return newGroups;
     });
   };
 
   // Check if status group is selected
   const isStatusGroupSelected = (statusGroup) => {
-    const statusMap = {
-      'ESPERA': ['ESPERA'],
-      'CONFIRMADA': ['CONFIRMADA'],
-      'PROGRESO': ['PROGRESO', 'EN_PROGRESO', 'EN_CURSO'],
-      'FINALIZADA': ['FINALIZADA', 'COMPLETADA'],
-      'CANCELADA': ['CANCELADA', 'NO_ASISTIO', 'NO ASISTIO']
-    };
-
-    const statusesToCheck = statusMap[statusGroup] || [];
-    return statusesToCheck.every(s => selectedStatuses.includes(s));
+    return selectedStatusGroups.includes(statusGroup);
   };
 
   return (
