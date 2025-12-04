@@ -730,7 +730,7 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
 
       {/* Edit Date Dialog */}
       <Dialog open={isEditDateDialogOpen} onOpenChange={setIsEditDateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarIcon className="w-5 h-5 text-teal-600" />
