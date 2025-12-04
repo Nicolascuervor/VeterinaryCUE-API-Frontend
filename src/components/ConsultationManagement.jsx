@@ -17,7 +17,8 @@ import {
   AlertCircle,
   Search,
   Filter,
-  X
+  X,
+  Edit
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import AvailabilityCalendar from '@/components/AvailabilityCalendar';
 
 const ConsultationManagement = ({ appointments, onUpdate }) => {
   const { toast } = useToast();
@@ -34,8 +36,11 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
   const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
   const [isNoShowDialogOpen, setIsNoShowDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isEditDateDialogOpen, setIsEditDateDialogOpen] = useState(false);
   const [pendingNoShowAppointment, setPendingNoShowAppointment] = useState(null);
   const [pendingCancelAppointment, setPendingCancelAppointment] = useState(null);
+  const [pendingEditDateAppointment, setPendingEditDateAppointment] = useState(null);
+  const [newAppointmentDate, setNewAppointmentDate] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   
   // Search and Filter States
@@ -142,6 +147,77 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
   const handleCancelClick = (appointment) => {
     setPendingCancelAppointment(appointment);
     setIsCancelDialogOpen(true);
+  };
+
+  const handleEditDateClick = (appointment) => {
+    setPendingEditDateAppointment(appointment);
+    setNewAppointmentDate(null);
+    setIsEditDateDialogOpen(true);
+  };
+
+  const confirmEditDate = async () => {
+    if (!pendingEditDateAppointment || !newAppointmentDate) {
+      toast({
+        title: "Error",
+        description: "Por favor selecciona una nueva fecha y hora para la cita.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('jwtToken');
+      
+      // Calcular la duración actual de la cita para mantenerla
+      let fechaHoraFin = null;
+      if (pendingEditDateAppointment.fechaHoraInicio && pendingEditDateAppointment.fechaHoraFin) {
+        const fechaInicioAnterior = new Date(pendingEditDateAppointment.fechaHoraInicio);
+        const fechaFinAnterior = new Date(pendingEditDateAppointment.fechaHoraFin);
+        const duracionMinutos = Math.round((fechaFinAnterior - fechaInicioAnterior) / (1000 * 60));
+        
+        fechaHoraFin = new Date(newAppointmentDate);
+        fechaHoraFin.setMinutes(fechaHoraFin.getMinutes() + duracionMinutos);
+      } else {
+        // Si no tenemos la duración anterior, usar 30 minutos por defecto
+        fechaHoraFin = new Date(newAppointmentDate);
+        fechaHoraFin.setMinutes(fechaHoraFin.getMinutes() + 30);
+      }
+
+      const response = await fetch(`https://api.veterinariacue.com/api/citas/${pendingEditDateAppointment.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fechaHoraInicio: newAppointmentDate.toISOString(),
+          fechaHoraFin: fechaHoraFin.toISOString()
+        })
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Fecha Actualizada",
+          description: "La fecha y hora de la cita han sido actualizadas exitosamente."
+        });
+        if (onUpdate) onUpdate();
+        setIsEditDateDialogOpen(false);
+        setPendingEditDateAppointment(null);
+        setNewAppointmentDate(null);
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Error al actualizar la fecha de la cita' }));
+        throw new Error(errorData.message || 'Error al actualizar la fecha de la cita');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || 'No se pudo actualizar la fecha de la cita. Por favor, intenta nuevamente.',
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const confirmCancel = async () => {
@@ -514,33 +590,46 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
 
                 <CardFooter className="pt-3 pb-3 px-4 border-t border-slate-100 mt-2">
                   {isPending && (
-                    <div className="grid grid-cols-3 gap-4 w-full">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
-                        onClick={() => handleCancelClick(apt)}
-                        disabled={isLoading}
-                      >
-                        <XCircle className="w-4 h-4 mr-1" /> Cancelar
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleNoShowClick(apt)}
-                        disabled={isLoading}
-                      >
-                        <XCircle className="w-4 h-4 mr-1" /> No Asistencia
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={() => handleStartConsultation(apt)}
-                        disabled={isLoading}
-                      >
-                        <Play className="w-4 h-4 mr-1" /> Iniciar
-                      </Button>
+                    <div className="flex flex-col gap-2 w-full">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-teal-500 hover:text-teal-700 hover:bg-teal-50"
+                          onClick={() => handleEditDateClick(apt)}
+                          disabled={isLoading}
+                        >
+                          <Edit className="w-4 h-4 mr-1" /> Editar Fecha
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={() => handleStartConsultation(apt)}
+                          disabled={isLoading}
+                        >
+                          <Play className="w-4 h-4 mr-1" /> Iniciar
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                          onClick={() => handleCancelClick(apt)}
+                          disabled={isLoading}
+                        >
+                          <XCircle className="w-4 h-4 mr-1" /> Cancelar
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleNoShowClick(apt)}
+                          disabled={isLoading}
+                        >
+                          <XCircle className="w-4 h-4 mr-1" /> No Asistencia
+                        </Button>
+                      </div>
                     </div>
                   )}
                   
@@ -634,6 +723,95 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
               disabled={isLoading}
             >
               Confirmar Cancelación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Date Dialog */}
+      <Dialog open={isEditDateDialogOpen} onOpenChange={setIsEditDateDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5 text-teal-600" />
+              Editar Fecha de la Cita
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona una nueva fecha y hora para esta cita. El sistema validará automáticamente la disponibilidad.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {pendingEditDateAppointment && (
+            <div className="space-y-4">
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 space-y-2">
+                <p className="text-sm"><span className="font-semibold">Mascota:</span> {pendingEditDateAppointment.mascota || pendingEditDateAppointment.mascotaNombre}</p>
+                <p className="text-sm"><span className="font-semibold">Dueño:</span> {pendingEditDateAppointment.propietario || pendingEditDateAppointment.ownerName || pendingEditDateAppointment.nombreDuenio}</p>
+                <p className="text-sm"><span className="font-semibold">Fecha y Hora Actual:</span> {
+                  pendingEditDateAppointment.fechaHoraInicio 
+                    ? new Date(pendingEditDateAppointment.fechaHoraInicio).toLocaleString('es-ES', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    : (pendingEditDateAppointment.hora || '--:--')
+                }</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-slate-900 flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Nueva Fecha y Hora <span className="text-red-500">*</span>
+                </Label>
+                <AvailabilityCalendar
+                  veterinarianId={pendingEditDateAppointment.veterinarianId}
+                  serviceDuration={30} // Duración por defecto, se puede obtener del servicio si está disponible
+                  onTimeSelect={(date) => setNewAppointmentDate(date)}
+                  selectedDateTime={newAppointmentDate}
+                />
+                {newAppointmentDate && (
+                  <p className="text-xs text-teal-600 flex items-center gap-1 mt-2">
+                    <CheckCircle className="w-3 h-3" />
+                    Nueva fecha seleccionada: {newAppointmentDate.toLocaleString('es-ES', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => {
+              setIsEditDateDialogOpen(false);
+              setPendingEditDateAppointment(null);
+              setNewAppointmentDate(null);
+            }} disabled={isLoading}>
+              Cancelar
+            </Button>
+            <Button 
+              className="bg-teal-600 hover:bg-teal-700 text-white" 
+              onClick={confirmEditDate}
+              disabled={isLoading || !newAppointmentDate}
+            >
+              {isLoading ? (
+                <>
+                  <Clock className="w-4 h-4 mr-2 animate-spin" />
+                  Actualizando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Confirmar Nueva Fecha
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
