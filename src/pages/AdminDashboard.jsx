@@ -20,6 +20,7 @@ import {
 import { api } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
+import Logo from '@/components/Logo';
 
 // Helper to parse JWT
 const parseJwt = (token) => {
@@ -1404,7 +1405,7 @@ function AdminDashboard() {
       <aside className="w-64 bg-slate-900 text-white hidden md:flex flex-col fixed h-full overflow-y-auto z-20">
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-2">
-            <LayoutDashboard className="w-6 h-6 text-yellow-400" />
+            <Logo className="w-6 h-6" />
             <h1 className="text-xl font-bold">Vet<span className="text-yellow-400">CUE</span> Admin</h1>
           </div>
         </div>

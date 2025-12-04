@@ -16,6 +16,7 @@ import {
   CalendarPlus,
   Users
 } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -308,8 +309,8 @@ const VeterinarianDashboard = () => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center text-teal-600">
-              <PawPrint size={20} />
+            <div className="w-8 h-8 flex items-center justify-center">
+              <Logo className="w-8 h-8" />
             </div>
             <h1 className="text-xl font-bold text-slate-800 hidden md:block">
               Vet<span className="text-teal-600">CUE</span> <span className="text-slate-400 font-normal text-sm ml-2">Portal Veterinario</span>
