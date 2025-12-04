@@ -51,29 +51,19 @@ const ConfirmAppointmentPage = () => {
         let data = await response.json();
         console.log('Datos recibidos del endpoint:', data);
         
-        // Enriquecer datos usando los campos disponibles en la respuesta
+        // Enriquecer datos usando los campos del CitaConfirmacionResponseDTO
         const enrichedData = { ...data };
         
-        // Mapear campos alternativos para mascota
-        enrichedData.mascotaNombre = data.mascotaNombre || data.mascota?.nombre || data.nombreMascota || 'N/A';
+        // Mapear nombre de mascota (el backend devuelve 'nombreMascota')
+        enrichedData.mascotaNombre = data.nombreMascota || data.mascotaNombre || data.mascota?.nombre || 'N/A';
         enrichedData.mascota = enrichedData.mascotaNombre;
         
-        // Mapear campos alternativos para veterinario
-        if (data.veterinarioNombre) {
-          enrichedData.veterinarioNombre = data.veterinarioNombre;
-        } else if (data.veterinario) {
-          if (typeof data.veterinario === 'string') {
-            enrichedData.veterinarioNombre = data.veterinario;
-          } else {
-            enrichedData.veterinarioNombre = `${data.veterinario.nombre || ''} ${data.veterinario.apellido || ''}`.trim() || 'N/A';
-          }
-        } else {
-          enrichedData.veterinarioNombre = 'N/A';
-        }
+        // Mapear nombre de veterinario (el backend devuelve 'nombreVeterinario')
+        enrichedData.veterinarioNombre = data.nombreVeterinario || data.veterinarioNombre || 'N/A';
         enrichedData.veterinario = enrichedData.veterinarioNombre;
         
-        // Mapear motivo de consulta
-        enrichedData.motivo = data.motivo || data.motivoConsulta || data.nombreServicio || 'Consulta';
+        // Mapear motivo de consulta (el backend devuelve 'motivoConsulta')
+        enrichedData.motivo = data.motivoConsulta || data.motivo || data.nombreServicio || 'Consulta';
         
         setAppointment(enrichedData);
         
@@ -109,29 +99,19 @@ const ConfirmAppointmentPage = () => {
         let data = await response.json();
         console.log('Datos recibidos después de confirmar:', data);
         
-        // Enriquecer datos usando los campos disponibles en la respuesta
+        // Enriquecer datos usando los campos del CitaConfirmacionResponseDTO
         const enrichedData = { ...data };
         
-        // Mapear campos alternativos para mascota
-        enrichedData.mascotaNombre = data.mascotaNombre || data.mascota?.nombre || data.nombreMascota || 'N/A';
+        // Mapear nombre de mascota (el backend devuelve 'nombreMascota')
+        enrichedData.mascotaNombre = data.nombreMascota || data.mascotaNombre || data.mascota?.nombre || 'N/A';
         enrichedData.mascota = enrichedData.mascotaNombre;
         
-        // Mapear campos alternativos para veterinario
-        if (data.veterinarioNombre) {
-          enrichedData.veterinarioNombre = data.veterinarioNombre;
-        } else if (data.veterinario) {
-          if (typeof data.veterinario === 'string') {
-            enrichedData.veterinarioNombre = data.veterinario;
-          } else {
-            enrichedData.veterinarioNombre = `${data.veterinario.nombre || ''} ${data.veterinario.apellido || ''}`.trim() || 'N/A';
-          }
-        } else {
-          enrichedData.veterinarioNombre = 'N/A';
-        }
+        // Mapear nombre de veterinario (el backend devuelve 'nombreVeterinario')
+        enrichedData.veterinarioNombre = data.nombreVeterinario || data.veterinarioNombre || 'N/A';
         enrichedData.veterinario = enrichedData.veterinarioNombre;
         
-        // Mapear motivo de consulta
-        enrichedData.motivo = data.motivo || data.motivoConsulta || data.nombreServicio || 'Consulta';
+        // Mapear motivo de consulta (el backend devuelve 'motivoConsulta')
+        enrichedData.motivo = data.motivoConsulta || data.motivo || data.nombreServicio || 'Consulta';
         
         setIsConfirmed(true);
         setAppointment(enrichedData);
