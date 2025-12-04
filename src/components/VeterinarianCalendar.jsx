@@ -129,12 +129,12 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false, onFilterCh
     return estado;
   };
 
-  // Map status groups to backend states
+  // Map status groups to backend states (usando solo estados válidos del backend)
   const getStatusGroupBackendStates = (statusGroup) => {
     const statusMap = {
       'ESPERA': ['ESPERA'],
       'CONFIRMADA': ['CONFIRMADA'],
-      'PROGRESO': ['EN_PROGRESO', 'PROGRESO'],
+      'PROGRESO': ['EN_PROGRESO'], // El backend solo acepta EN_PROGRESO, no PROGRESO
       'FINALIZADA': ['FINALIZADA'],
       'CANCELADA': ['CANCELADA', 'NO_ASISTIO']
     };
