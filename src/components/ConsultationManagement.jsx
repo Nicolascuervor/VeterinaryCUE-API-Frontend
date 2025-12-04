@@ -514,11 +514,11 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
 
                 <CardFooter className="pt-2 border-t border-slate-100 mt-2">
                   {isPending && (
-                    <div className="flex flex-wrap gap-2 w-full justify-end">
+                    <div className="grid grid-cols-3 gap-2 w-full">
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="text-orange-500 hover:text-orange-700 hover:bg-orange-50 whitespace-nowrap"
+                        className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
                         onClick={() => handleCancelClick(apt)}
                         disabled={isLoading}
                       >
@@ -527,7 +527,7 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50 whitespace-nowrap"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
                         onClick={() => handleNoShowClick(apt)}
                         disabled={isLoading}
                       >
@@ -535,7 +535,7 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
                       </Button>
                       <Button 
                         size="sm" 
-                        className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
                         onClick={() => handleStartConsultation(apt)}
                         disabled={isLoading}
                       >
