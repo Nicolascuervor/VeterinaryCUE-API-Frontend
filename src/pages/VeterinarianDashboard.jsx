@@ -54,6 +54,7 @@ import ClinicalHistory from '@/components/ClinicalHistory';
 import ProfessionalProfile from '@/components/ProfessionalProfile';
 import AppointmentScheduling from '@/components/AppointmentScheduling';
 import OwnersManagement from '@/components/OwnersManagement';
+import VeterinarianCalendar from '@/components/VeterinarianCalendar';
 
 // Utility for JWT parsing
 const parseJwt = (token) => {
@@ -559,25 +560,6 @@ const AgendaView = ({ appointments, isLoading }) => {
     return dateA - dateB;
   });
 
-  // Group calendar appointments by date
-  const appointmentsByDate = calendarAppointments.reduce((acc, apt) => {
-    const date = new Date(apt.fechaHoraInicio);
-    const dateKey = date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
-    
-    if (!acc[dateKey]) {
-      acc[dateKey] = [];
-    }
-    acc[dateKey].push(apt);
-    return acc;
-  }, {});
-
-  // Sort dates - convert date strings to Date objects for proper sorting
-  const sortedDates = Object.keys(appointmentsByDate).sort((a, b) => {
-    // Get the first appointment from each date group to extract the actual date
-    const dateA = appointmentsByDate[a][0] ? new Date(appointmentsByDate[a][0].fechaHoraInicio) : new Date(0);
-    const dateB = appointmentsByDate[b][0] ? new Date(appointmentsByDate[b][0].fechaHoraInicio) : new Date(0);
-    return dateA - dateB;
-  });
 
   return (
     <>
@@ -664,108 +646,18 @@ const AgendaView = ({ appointments, isLoading }) => {
 
     {/* Calendar Dialog */}
     <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-slate-800">Calendario Completo</DialogTitle>
           <DialogDescription>
-            Todas tus citas futuras y pendientes organizadas por fecha
+            Todas tus citas futuras y pendientes organizadas en un calendario mensual
           </DialogDescription>
         </DialogHeader>
 
-        {isLoadingCalendar ? (
-          <div className="py-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-            <p className="mt-4 text-slate-500">Cargando citas...</p>
-          </div>
-        ) : sortedDates.length === 0 ? (
-          <div className="py-12 text-center">
-            <CalendarIcon className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-            <p className="text-lg font-medium text-slate-600 mb-1">No hay citas programadas</p>
-            <p className="text-sm text-slate-400">No tienes citas futuras o pendientes.</p>
-          </div>
-        ) : (
-          <div className="space-y-6 mt-4">
-            {sortedDates.map((dateKey) => (
-              <div key={dateKey} className="border-b border-slate-100 pb-6 last:border-b-0">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5 text-teal-600" />
-                  {dateKey}
-                </h3>
-                <div className="space-y-3">
-                  {appointmentsByDate[dateKey]
-                    .sort((a, b) => {
-                      const timeA = new Date(a.fechaHoraInicio);
-                      const timeB = new Date(b.fechaHoraInicio);
-                      return timeA - timeB;
-                    })
-                    .map((apt) => (
-                      <div
-                        key={apt.id}
-                        className="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:border-teal-300 transition-colors"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="min-w-[80px] text-center">
-                                <div className="text-lg font-bold text-slate-700">
-                                  {new Date(apt.fechaHoraInicio).toLocaleTimeString('es-ES', {
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </div>
-                                <div className="text-xs text-slate-400">HR</div>
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="text-base font-bold text-slate-800">
-                                    {apt.nombreServicio || 'Consulta'}
-                                  </h4>
-                                  <Badge
-                                    variant="secondary"
-                                    className={
-                                      (apt.estado === 'COMPLETADA' || apt.estado === 'FINALIZADA')
-                                        ? 'bg-green-100 text-green-700'
-                                        : (apt.estado || '').toUpperCase() === 'PROGRESO' ||
-                                          (apt.estado || '').toUpperCase() === 'EN_PROGRESO' ||
-                                          (apt.estado || '').toUpperCase() === 'EN_CURSO'
-                                        ? 'bg-blue-100 text-blue-700'
-                                        : apt.estado === 'ESPERA'
-                                        ? 'bg-purple-100 text-purple-700'
-                                        : apt.estado === 'CONFIRMADA'
-                                        ? 'bg-blue-100 text-blue-700'
-                                        : 'bg-yellow-100 text-yellow-700'
-                                    }
-                                  >
-                                    {apt.estado}
-                                  </Badge>
-                                </div>
-                                <div className="text-sm text-slate-500">
-                                  <span className="flex items-center gap-1">
-                                    <User className="w-3 h-3" /> Mascota ID: {apt.petId}
-                                  </span>
-                                </div>
-                                {apt.fechaHoraFin && (
-                                  <div className="text-xs text-slate-400 mt-1">
-                                    Duración: {new Date(apt.fechaHoraInicio).toLocaleTimeString('es-ES', {
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })} - {new Date(apt.fechaHoraFin).toLocaleTimeString('es-ES', {
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <VeterinarianCalendar 
+          appointments={calendarAppointments} 
+          isLoading={isLoadingCalendar}
+        />
       </DialogContent>
     </Dialog>
     </>
