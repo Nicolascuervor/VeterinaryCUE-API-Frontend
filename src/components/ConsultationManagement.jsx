@@ -512,9 +512,9 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
                   </div>
                 </CardContent>
 
-                <CardFooter className="pt-2 border-t border-slate-100 mt-2">
+                <CardFooter className="pt-3 pb-3 px-4 border-t border-slate-100 mt-2">
                   {isPending && (
-                    <div className="grid grid-cols-3 gap-2 w-full">
+                    <div className="grid grid-cols-3 gap-4 w-full">
                       <Button 
                         variant="ghost" 
                         size="sm" 
