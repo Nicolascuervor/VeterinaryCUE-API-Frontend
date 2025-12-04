@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/agendamiento-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/api-gateway/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/authentication-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/carrito-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/citas-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/eureka-server/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/facturas-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/historias-clinicas-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/inventario-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/mascotas-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/notification-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/pedidos-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/VeterinaryCUE-API-Backend/src/main/resources" charset="UTF-8" />
+  </component>
+</project>

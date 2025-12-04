@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 const OwnerEcommerce = ({ ownerId }) => {
   const { toast } = useToast();
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [cart, setCart] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCartLoading, setIsCartLoading] = useState(false);
@@ -29,18 +30,47 @@ const OwnerEcommerce = ({ ownerId }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
+    fetchCategories();
     fetchProducts();
     fetchCart();
   }, [ownerId]);
 
-  const fetchProducts = async () => {
-    setIsLoading(true);
+  useEffect(() => {
+    // Debounce para búsqueda
+    const timer = setTimeout(() => {
+      if (filterTerm.trim() || selectedCategory !== 'todas') {
+        searchProducts();
+      } else {
+        fetchProducts();
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [filterTerm, selectedCategory]);
+
+  const fetchCategories = async () => {
     try {
-      const response = await fetch('https://api.veterinariacue.com/api/inventario/productos');
+      const response = await fetch('https://api.veterinariacue.com/api/inventario/categorias/public');
       
       if (response.ok) {
         const data = await response.json();
-        setProducts(data.filter(p => p.activo && p.stock > 0));
+        setCategories(data);
+      } else {
+        console.error("Error fetching categories");
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
+
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('https://api.veterinariacue.com/api/inventario/productos/public/disponibles');
+      
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data);
       } else {
         toast({
           title: "Error",
@@ -53,6 +83,53 @@ const OwnerEcommerce = ({ ownerId }) => {
       toast({
         title: "Error",
         description: "Error al cargar los productos.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const searchProducts = async () => {
+    setIsLoading(true);
+    try {
+      let url = '';
+      
+      if (filterTerm.trim() && selectedCategory !== 'todas') {
+        // Búsqueda avanzada con filtros
+        const categoryId = selectedCategory;
+        url = `https://api.veterinariacue.com/api/inventario/productos/public/filtrar?nombre=${encodeURIComponent(filterTerm)}&categoriaId=${categoryId}&page=0&size=100`;
+      } else if (filterTerm.trim()) {
+        // Búsqueda por nombre
+        url = `https://api.veterinariacue.com/api/inventario/productos/public/buscar?nombre=${encodeURIComponent(filterTerm)}&page=0&size=100`;
+      } else if (selectedCategory !== 'todas') {
+        // Filtro por categoría
+        const categoryId = selectedCategory;
+        url = `https://api.veterinariacue.com/api/inventario/productos/public/categoria/${categoryId}?page=0&size=100`;
+      } else {
+        fetchProducts();
+        return;
+      }
+
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Si la respuesta es paginada, extraer el contenido
+        const productList = data.content || data;
+        setProducts(Array.isArray(productList) ? productList : []);
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudieron buscar los productos.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error searching products:", error);
+      toast({
+        title: "Error",
+        description: "Error al buscar productos.",
         variant: "destructive"
       });
     } finally {
@@ -185,31 +262,16 @@ const OwnerEcommerce = ({ ownerId }) => {
     }
   };
 
-  const getProductTypeLabel = (tipo) => {
-    const types = {
-      'ALIMENTO': 'Alimento',
-      'MEDICINA': 'Medicina',
-      'ACCESORIO': 'Accesorio'
-    };
-    return types[tipo] || tipo;
+  const getProductImageUrl = (foto) => {
+    if (!foto) return null;
+    // Si ya es una URL completa, retornarla
+    if (foto.startsWith('http://') || foto.startsWith('https://')) {
+      return foto;
+    }
+    // Si es un nombre de archivo, construir la URL del endpoint de imágenes
+    const filename = foto.split('/').pop() || foto;
+    return `https://api.veterinariacue.com/api/inventario/uploads/${filename}`;
   };
-
-  const getProductTypeColor = (tipo) => {
-    const colors = {
-      'ALIMENTO': 'bg-green-100 text-green-800 border-green-200',
-      'MEDICINA': 'bg-blue-100 text-blue-800 border-blue-200',
-      'ACCESORIO': 'bg-purple-100 text-purple-800 border-purple-200'
-    };
-    return colors[tipo] || 'bg-slate-100 text-slate-800';
-  };
-
-  const categories = ['todas', ...new Set(products.map(p => p.tipo))];
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.nombre?.toLowerCase().includes(filterTerm.toLowerCase()) ||
-                         p.descripcion?.toLowerCase().includes(filterTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'todas' || p.tipo === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
 
   const cartItemCount = cart?.items?.reduce((sum, item) => sum + item.cantidad, 0) || 0;
   const cartTotal = cart?.total || 0;
@@ -256,9 +318,10 @@ const OwnerEcommerce = ({ ownerId }) => {
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
+                <option value="todas">Todas las categorías</option>
                 {categories.map(cat => (
-                  <option key={cat} value={cat}>
-                    {cat === 'todas' ? 'Todas las categorías' : getProductTypeLabel(cat)}
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nombre}
                   </option>
                 ))}
               </select>
@@ -282,33 +345,48 @@ const OwnerEcommerce = ({ ownerId }) => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => {
+          {products.map((product) => {
             const cartItem = cart?.items?.find(item => item.productoId === product.id);
             const inCart = !!cartItem;
+            const imageUrl = getProductImageUrl(product.foto);
 
             return (
               <Card key={product.id} className="hover:shadow-md transition-shadow">
+                {imageUrl && (
+                  <div className="w-full h-48 bg-slate-100 rounded-t-lg overflow-hidden">
+                    <img 
+                      src={imageUrl} 
+                      alt={product.nombre}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
                 <CardHeader>
                   <div className="flex justify-between items-start mb-2">
-                    <Badge className={getProductTypeColor(product.tipo)}>
-                      {getProductTypeLabel(product.tipo)}
-                    </Badge>
-                    {product.stock < 10 && (
+                    {product.categoria && (
+                      <Badge className="bg-teal-100 text-teal-800 border-teal-200">
+                        {product.categoria.nombre}
+                      </Badge>
+                    )}
+                    {product.stockActual < 10 && (
                       <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
                         Poco Stock
                       </Badge>
                     )}
                   </div>
                   <CardTitle className="text-lg">{product.nombre}</CardTitle>
-                  <CardDescription className="line-clamp-2">{product.descripcion}</CardDescription>
+                  <CardDescription className="line-clamp-2">{product.descripcion || 'Sin descripción'}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-bold text-slate-900 flex items-center gap-1">
                       <DollarSign className="w-5 h-5" />
-                      {product.precio?.toLocaleString('es-CO')}
+                      ${product.precio?.toLocaleString('es-CO')}
                     </span>
-                    <span className="text-sm text-slate-500">Stock: {product.stock}</span>
+                    <span className="text-sm text-slate-500">Stock: {product.stockActual || 0}</span>
                   </div>
 
                   {inCart ? (
@@ -326,7 +404,7 @@ const OwnerEcommerce = ({ ownerId }) => {
                           variant="ghost"
                           size="sm"
                           onClick={() => updateCartItem(product.id, cartItem.cantidad + 1)}
-                          disabled={cartItem.cantidad >= product.stock}
+                          disabled={cartItem.cantidad >= (product.stockActual || 0)}
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
@@ -345,7 +423,7 @@ const OwnerEcommerce = ({ ownerId }) => {
                     <Button
                       className="w-full bg-teal-600 hover:bg-teal-700 text-white"
                       onClick={() => addToCart(product.id)}
-                      disabled={product.stock === 0}
+                      disabled={!product.disponibleParaVenta || (product.stockActual || 0) === 0}
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Agregar al Carrito
@@ -405,7 +483,7 @@ const OwnerEcommerce = ({ ownerId }) => {
                               variant="ghost"
                               size="sm"
                               onClick={() => updateCartItem(item.productoId, item.cantidad + 1)}
-                              disabled={item.cantidad >= product.stock}
+                              disabled={item.cantidad >= (product.stockActual || 0)}
                             >
                               <Plus className="w-4 h-4" />
                             </Button>
