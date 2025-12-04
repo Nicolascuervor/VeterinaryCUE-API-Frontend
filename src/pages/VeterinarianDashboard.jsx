@@ -227,7 +227,7 @@ const VeterinarianDashboard = () => {
             const estado = (a.estado || '').toUpperCase();
             const aptDate = new Date(a.fechaHoraInicio || a.fechayhora);
             aptDate.setHours(0, 0, 0, 0);
-            return (estado === 'ESPERA' || estado === 'PENDIENTE' || estado === 'CONFIRMADA') && aptDate >= today;
+            return (estado === 'ESPERA' || estado === 'CONFIRMADA') && aptDate >= today;
           }).length;
           
           const completed = enrichedAppointments.filter(a => {
@@ -299,7 +299,7 @@ const VeterinarianDashboard = () => {
   // Helper: Next Appointment
   const nextAppointment = appointments.find(a => {
     const estado = (a.estado || '').toUpperCase();
-    return estado === 'ESPERA' || estado === 'PENDIENTE' || estado === 'EN_CURSO' || estado === 'CONFIRMADA' || estado === 'EN_PROGRESO';
+    return estado === 'ESPERA' || estado === 'CONFIRMADA' || estado === 'PROGRESO' || estado === 'EN_PROGRESO' || estado === 'EN_CURSO';
   });
 
   return (
@@ -559,7 +559,7 @@ const AgendaView = ({ appointments, isLoading }) => {
                         variant="secondary" 
                         className={
                            (appointment.estado === 'COMPLETADA' || appointment.estado === 'FINALIZADA') ? 'bg-green-100 text-green-700' : 
-                           (appointment.estado === 'EN_CURSO' || appointment.estado === 'EN_PROGRESO') ? 'bg-blue-100 text-blue-700' :
+                           ((appointment.estado || '').toUpperCase() === 'PROGRESO' || (appointment.estado || '').toUpperCase() === 'EN_PROGRESO' || (appointment.estado || '').toUpperCase() === 'EN_CURSO') ? 'bg-blue-100 text-blue-700' :
                            'bg-yellow-100 text-yellow-700'
                         }
                      >

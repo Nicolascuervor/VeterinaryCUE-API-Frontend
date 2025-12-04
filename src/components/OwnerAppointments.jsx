@@ -180,11 +180,13 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
   };
 
   const getStatusColor = (status) => {
-    const s = (status || '').toUpperCase();
-    if (s === 'ESPERA' || s === 'CONFIRMADA' || s === 'PENDIENTE') return 'bg-blue-100 text-blue-800 border-blue-200';
-    if (s === 'EN_PROGRESO' || s === 'EN_CURSO') return 'bg-amber-100 text-amber-800 border-amber-200';
+    const s = (status || '').toUpperCase().replace(/\s+/g, '_'); // Normalizar espacios
+    if (s === 'ESPERA') return 'bg-blue-100 text-blue-800 border-blue-200';
+    if (s === 'CONFIRMADA') return 'bg-blue-100 text-blue-800 border-blue-200';
+    if (s === 'PROGRESO' || s === 'EN_PROGRESO' || s === 'EN_CURSO') return 'bg-amber-100 text-amber-800 border-amber-200';
     if (s === 'FINALIZADA' || s === 'COMPLETADA') return 'bg-green-100 text-green-800 border-green-200';
-    if (s === 'CANCELADA' || s === 'NO_ASISTIO') return 'bg-red-100 text-red-800 border-red-200';
+    if (s === 'CANCELADA') return 'bg-red-100 text-red-800 border-red-200';
+    if (s === 'NO_ASISTIO' || s === 'NO ASISTIO') return 'bg-red-100 text-red-800 border-red-200';
     return 'bg-slate-100 text-slate-800';
   };
 
@@ -192,11 +194,10 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
     const s = (status || '').toUpperCase();
     if (s === 'ESPERA') return 'En Espera';
     if (s === 'CONFIRMADA') return 'Confirmada';
-    if (s === 'PENDIENTE') return 'Pendiente';
-    if (s === 'EN_PROGRESO' || s === 'EN_CURSO') return 'En Progreso';
+    if (s === 'PROGRESO' || s === 'EN_PROGRESO' || s === 'EN_CURSO') return 'En Progreso';
     if (s === 'FINALIZADA' || s === 'COMPLETADA') return 'Completada';
     if (s === 'CANCELADA') return 'Cancelada';
-    if (s === 'NO_ASISTIO') return 'No Asistió';
+    if (s === 'NO_ASISTIO' || s === 'NO ASISTIO') return 'No Asistió';
     return status;
   };
 
@@ -204,13 +205,13 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
     if (filter === 'todas') return true;
     const status = (apt.estado || '').toUpperCase();
     if (filter === 'pendientes') {
-      return status === 'ESPERA' || status === 'PENDIENTE' || status === 'CONFIRMADA' || status === 'EN_PROGRESO' || status === 'EN_CURSO';
+      return status === 'ESPERA' || status === 'CONFIRMADA' || status === 'PROGRESO' || status === 'EN_PROGRESO' || status === 'EN_CURSO';
     }
     if (filter === 'completadas') {
       return status === 'FINALIZADA' || status === 'COMPLETADA';
     }
     if (filter === 'canceladas') {
-      return status === 'CANCELADA' || status === 'NO_ASISTIO';
+      return status === 'CANCELADA' || status === 'NO_ASISTIO' || status === 'NO ASISTIO';
     }
     return true;
   });
@@ -218,7 +219,7 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
   const upcomingAppointments = filteredAppointments.filter(apt => {
     const aptDate = new Date(apt.fechaHoraInicio || apt.fechayhora);
     const status = (apt.estado || '').toUpperCase();
-    return aptDate >= new Date() && (status === 'ESPERA' || status === 'PENDIENTE' || status === 'CONFIRMADA' || status === 'EN_PROGRESO' || status === 'EN_CURSO');
+    return aptDate >= new Date() && (status === 'ESPERA' || status === 'CONFIRMADA' || status === 'PROGRESO' || status === 'EN_PROGRESO' || status === 'EN_CURSO');
   });
 
   const pastAppointments = filteredAppointments.filter(apt => {

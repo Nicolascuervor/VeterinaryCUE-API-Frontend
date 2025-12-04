@@ -181,7 +181,7 @@ const OwnerDashboard = () => {
         const pending = ownerAppointments.filter(a => {
           const aptDate = new Date(a.fechaHoraInicio || a.fechayhora);
           return aptDate >= today && 
-                 ((a.estado || '').toUpperCase() === 'ESPERA' || (a.estado || '').toUpperCase() === 'PENDIENTE' || (a.estado || '').toUpperCase() === 'CONFIRMADA' || (a.estado || '').toUpperCase() === 'EN_PROGRESO' || (a.estado || '').toUpperCase() === 'EN_CURSO');
+                 ((a.estado || '').toUpperCase() === 'ESPERA' || (a.estado || '').toUpperCase() === 'CONFIRMADA' || (a.estado || '').toUpperCase() === 'PROGRESO' || (a.estado || '').toUpperCase() === 'EN_PROGRESO' || (a.estado || '').toUpperCase() === 'EN_CURSO');
         }).length;
         
         const completed = ownerAppointments.filter(a => 
