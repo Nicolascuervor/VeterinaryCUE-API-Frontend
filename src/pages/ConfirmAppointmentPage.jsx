@@ -40,7 +40,6 @@ const ConfirmAppointmentPage = () => {
       setError(null);
       
       // Intentar obtener los detalles de la cita usando GET
-      // El endpoint puede devolver la información de la cita sin confirmarla
       const response = await fetch(`https://api.veterinariacue.com/api/citas/public/confirmar/${token}`, {
         method: 'GET',
         headers: {
@@ -49,15 +48,40 @@ const ConfirmAppointmentPage = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setAppointment(data);
+        let data = await response.json();
+        console.log('Datos recibidos del endpoint:', data);
+        
+        // Enriquecer datos usando los campos disponibles en la respuesta
+        const enrichedData = { ...data };
+        
+        // Mapear campos alternativos para mascota
+        enrichedData.mascotaNombre = data.mascotaNombre || data.mascota?.nombre || data.nombreMascota || 'N/A';
+        enrichedData.mascota = enrichedData.mascotaNombre;
+        
+        // Mapear campos alternativos para veterinario
+        if (data.veterinarioNombre) {
+          enrichedData.veterinarioNombre = data.veterinarioNombre;
+        } else if (data.veterinario) {
+          if (typeof data.veterinario === 'string') {
+            enrichedData.veterinarioNombre = data.veterinario;
+          } else {
+            enrichedData.veterinarioNombre = `${data.veterinario.nombre || ''} ${data.veterinario.apellido || ''}`.trim() || 'N/A';
+          }
+        } else {
+          enrichedData.veterinarioNombre = 'N/A';
+        }
+        enrichedData.veterinario = enrichedData.veterinarioNombre;
+        
+        // Mapear motivo de consulta
+        enrichedData.motivo = data.motivo || data.motivoConsulta || data.nombreServicio || 'Consulta';
+        
+        setAppointment(enrichedData);
+        
         // Verificar si la cita ya está confirmada
-        if (data.estado === 'CONFIRMADA') {
+        if (enrichedData.estado === 'CONFIRMADA') {
           setIsConfirmed(true);
         }
       } else {
-        // Si GET falla, intentar con POST (algunos endpoints solo tienen POST)
-        // Pero primero mostramos el error del GET
         const errorData = await response.json().catch(() => ({ message: 'Token de confirmación no válido o expirado' }));
         setError(errorData.message || 'No se pudo cargar la información de la cita');
       }
@@ -82,9 +106,35 @@ const ConfirmAppointmentPage = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        let data = await response.json();
+        console.log('Datos recibidos después de confirmar:', data);
+        
+        // Enriquecer datos usando los campos disponibles en la respuesta
+        const enrichedData = { ...data };
+        
+        // Mapear campos alternativos para mascota
+        enrichedData.mascotaNombre = data.mascotaNombre || data.mascota?.nombre || data.nombreMascota || 'N/A';
+        enrichedData.mascota = enrichedData.mascotaNombre;
+        
+        // Mapear campos alternativos para veterinario
+        if (data.veterinarioNombre) {
+          enrichedData.veterinarioNombre = data.veterinarioNombre;
+        } else if (data.veterinario) {
+          if (typeof data.veterinario === 'string') {
+            enrichedData.veterinarioNombre = data.veterinario;
+          } else {
+            enrichedData.veterinarioNombre = `${data.veterinario.nombre || ''} ${data.veterinario.apellido || ''}`.trim() || 'N/A';
+          }
+        } else {
+          enrichedData.veterinarioNombre = 'N/A';
+        }
+        enrichedData.veterinario = enrichedData.veterinarioNombre;
+        
+        // Mapear motivo de consulta
+        enrichedData.motivo = data.motivo || data.motivoConsulta || data.nombreServicio || 'Consulta';
+        
         setIsConfirmed(true);
-        setAppointment(data);
+        setAppointment(enrichedData);
       } else {
         const errorData = await response.json().catch(() => ({ message: 'Error al confirmar la cita' }));
         setError(errorData.message || 'No se pudo confirmar la cita. Por favor, intenta nuevamente.');
