@@ -53,24 +53,93 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
         const data = await response.json();
         console.log('✅ [OWNER CITAS] Citas recibidas del backend:', data.length);
         
-        // Debug: Ver estructura de la primera cita para identificar el campo correcto
+        // Debug: Ver estructura de la primera cita
         if (data.length > 0) {
           console.log('🔍 [OWNER CITAS] Estructura de la primera cita:', data[0]);
           console.log('🔍 [OWNER CITAS] Campos disponibles:', Object.keys(data[0]));
-          console.log('🔍 [OWNER CITAS] duenioId:', data[0].duenioId, 'tipo:', typeof data[0].duenioId);
-          console.log('🔍 [OWNER CITAS] duenio_id:', data[0].duenio_id, 'tipo:', typeof data[0].duenio_id);
-          console.log('🔍 [OWNER CITAS] ownerId recibido:', ownerId, 'tipo:', typeof ownerId);
         }
         
-        // Filter appointments by owner - verificar múltiples posibles nombres de campo
+        // El backend no incluye duenioId directamente en las citas
+        // Necesitamos obtener el duenioId de cada mascota para filtrar
         const ownerIdNum = parseInt(ownerId);
-        const ownerAppointments = data.filter(apt => {
-          // Intentar con diferentes nombres de campo posibles
-          const aptOwnerId = apt.duenioId || apt.duenio_id || apt.ownerId || apt.owner_id;
-          const matches = parseInt(aptOwnerId) === ownerIdNum || aptOwnerId === ownerIdNum;
+        console.log('🔍 [OWNER CITAS] Obteniendo dueños de las mascotas para filtrar...');
+        
+        // Obtener duenioId de cada mascota y enriquecer citas en una sola pasada
+        // Usar un cache para evitar llamadas duplicadas a la API
+        const petCache = new Map();
+        const vetCache = new Map();
+        
+        const appointmentsWithOwner = await Promise.all(
+          data.map(async (apt) => {
+            const appointmentWithOwner = { ...apt };
+            
+            // Obtener el dueño de la mascota (y cachear los datos de la mascota)
+            if (apt.petId) {
+              try {
+                let pet;
+                if (petCache.has(apt.petId)) {
+                  pet = petCache.get(apt.petId);
+                } else {
+                  const petResponse = await fetch(`https://api.veterinariacue.com/api/mascotas/${apt.petId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  if (petResponse.ok) {
+                    pet = await petResponse.json();
+                    petCache.set(apt.petId, pet);
+                  } else {
+                    console.warn(`❌ [OWNER CITAS] No se pudo obtener mascota ID: ${apt.petId}. Status: ${petResponse.status}`);
+                  }
+                }
+                
+                if (pet) {
+                  // El campo puede ser duenioId, duenio_id, ownerId, o owner_id
+                  appointmentWithOwner.duenioId = pet.duenioId || pet.duenio_id || pet.ownerId || pet.owner_id;
+                  appointmentWithOwner.mascotaNombre = pet.nombre;
+                  appointmentWithOwner.mascota = pet.nombre;
+                  console.log(`🐾 [OWNER CITAS] Cita ID ${apt.id} - Mascota ID ${apt.petId} - Dueño ID: ${appointmentWithOwner.duenioId}`);
+                }
+              } catch (err) {
+                console.warn(`❌ [OWNER CITAS] Error al obtener mascota ID ${apt.petId}:`, err);
+              }
+            }
+            
+            // Obtener nombre del veterinario (y cachear)
+            if (apt.veterinarianId) {
+              try {
+                let vet;
+                if (vetCache.has(apt.veterinarianId)) {
+                  vet = vetCache.get(apt.veterinarianId);
+                } else {
+                  const vetResponse = await fetch(`https://api.veterinariacue.com/api/auth/${apt.veterinarianId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  if (vetResponse.ok) {
+                    vet = await vetResponse.json();
+                    vetCache.set(apt.veterinarianId, vet);
+                  } else {
+                    console.warn(`❌ [OWNER CITAS] No se pudo obtener veterinario ID: ${apt.veterinarianId}. Status: ${vetResponse.status}`);
+                  }
+                }
+                
+                if (vet) {
+                  appointmentWithOwner.veterinarioNombre = `${vet.nombre || ''} ${vet.apellido || ''}`.trim();
+                }
+              } catch (err) {
+                console.warn(`❌ [OWNER CITAS] Error al obtener veterinario ID ${apt.veterinarianId}:`, err);
+              }
+            }
+            
+            return appointmentWithOwner;
+          })
+        );
+        
+        // Ahora filtrar por ownerId
+        const ownerAppointments = appointmentsWithOwner.filter(apt => {
+          const aptOwnerId = apt.duenioId;
+          const matches = aptOwnerId !== undefined && parseInt(aptOwnerId) === ownerIdNum;
           
           if (matches) {
-            console.log('✅ [OWNER CITAS] Cita encontrada - ID:', apt.id, 'Owner ID:', aptOwnerId, 'Tipo:', typeof aptOwnerId);
+            console.log('✅ [OWNER CITAS] Cita encontrada - ID:', apt.id, 'Owner ID:', aptOwnerId);
           }
           
           return matches;
@@ -84,53 +153,8 @@ const OwnerAppointments = ({ ownerId, onUpdate }) => {
           return dateB - dateA;
         });
         
-        // Enrich appointments with pet and veterinarian names
-        const enrichedAppointments = await Promise.all(
-          ownerAppointments.map(async (apt) => {
-            const enriched = { ...apt };
-            
-            // Fetch pet name
-            if (apt.petId) {
-              try {
-                console.log(`🐾 [OWNER CITAS] Obteniendo datos de mascota ID: ${apt.petId}`);
-                const petResponse = await fetch(`https://api.veterinariacue.com/api/mascotas/${apt.petId}`, {
-                  headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (petResponse.ok) {
-                  const pet = await petResponse.json();
-                  enriched.mascota = pet.nombre;
-                  enriched.mascotaNombre = pet.nombre;
-                  console.log(`🐾 [OWNER CITAS] Mascota ID ${apt.petId} - Nombre: ${pet.nombre}`);
-                } else {
-                  console.warn(`❌ [OWNER CITAS] No se pudo obtener mascota ID: ${apt.petId}. Status: ${petResponse.status}`);
-                }
-              } catch (err) {
-                console.warn("❌ [OWNER CITAS] Error al obtener nombre de mascota:", err);
-              }
-            }
-            
-            // Fetch veterinarian name
-            if (apt.veterinarianId) {
-              try {
-                console.log(`👨‍⚕️ [OWNER CITAS] Obteniendo datos de veterinario ID: ${apt.veterinarianId}`);
-                const vetResponse = await fetch(`https://api.veterinariacue.com/api/auth/${apt.veterinarianId}`, {
-                  headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (vetResponse.ok) {
-                  const vet = await vetResponse.json();
-                  enriched.veterinarioNombre = `${vet.nombre || ''} ${vet.apellido || ''}`.trim();
-                  console.log(`👨‍⚕️ [OWNER CITAS] Veterinario ID ${apt.veterinarianId} - Nombre: ${enriched.veterinarioNombre}`);
-                } else {
-                  console.warn(`❌ [OWNER CITAS] No se pudo obtener veterinario ID: ${apt.veterinarianId}. Status: ${vetResponse.status}`);
-                }
-              } catch (err) {
-                console.warn("❌ [OWNER CITAS] Error al obtener nombre de veterinario:", err);
-              }
-            }
-            
-            return enriched;
-          })
-        );
+        // Las citas ya están enriquecidas, solo asignarlas
+        const enrichedAppointments = ownerAppointments;
         
         setAppointments(enrichedAppointments);
         console.log('📊 [OWNER CITAS] Citas enriquecidas y establecidas:', enrichedAppointments.length);
