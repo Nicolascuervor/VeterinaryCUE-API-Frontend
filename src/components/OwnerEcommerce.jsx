@@ -335,7 +335,7 @@ const OwnerEcommerce = ({ ownerId }) => {
         <div className="flex items-center justify-center h-96">
           <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
         </div>
-      ) : filteredProducts.length === 0 ? (
+      ) : products.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="p-12 text-center">
             <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
