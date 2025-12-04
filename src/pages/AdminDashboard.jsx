@@ -1404,8 +1404,8 @@ function AdminDashboard() {
       {/* Sidebar */}
       <aside className="w-64 bg-slate-900 text-white hidden md:flex flex-col fixed h-full overflow-y-auto z-20">
         <div className="p-6 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <Logo className="w-6 h-6" />
+          <div className="flex items-center gap-3">
+            <Logo className="w-12 h-12" />
             <h1 className="text-xl font-bold">Vet<span className="text-yellow-400">CUE</span> Admin</h1>
           </div>
         </div>
