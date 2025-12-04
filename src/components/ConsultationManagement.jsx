@@ -512,22 +512,22 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
                   </div>
                 </CardContent>
 
-                <CardFooter className="pt-2 flex gap-2 justify-end border-t border-slate-100 mt-2">
+                <CardFooter className="pt-2 border-t border-slate-100 mt-2">
                   {isPending && (
-                    <>
+                    <div className="flex flex-wrap gap-2 w-full justify-end">
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                        className="text-orange-500 hover:text-orange-700 hover:bg-orange-50 whitespace-nowrap"
                         onClick={() => handleCancelClick(apt)}
                         disabled={isLoading}
                       >
-                        <XCircle className="w-4 h-4 mr-1" /> Cancelar Cita
+                        <XCircle className="w-4 h-4 mr-1" /> Cancelar
                       </Button>
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 whitespace-nowrap"
                         onClick={() => handleNoShowClick(apt)}
                         disabled={isLoading}
                       >
@@ -535,13 +535,13 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
                       </Button>
                       <Button 
                         size="sm" 
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
                         onClick={() => handleStartConsultation(apt)}
                         disabled={isLoading}
                       >
                         <Play className="w-4 h-4 mr-1" /> Iniciar
                       </Button>
-                    </>
+                    </div>
                   )}
                   
                   {isInProgress && (
