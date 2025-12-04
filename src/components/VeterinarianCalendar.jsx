@@ -15,6 +15,20 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // Estado filters - todos seleccionados por defecto
+  const [selectedStatuses, setSelectedStatuses] = useState([
+    'ESPERA',
+    'CONFIRMADA',
+    'PROGRESO',
+    'EN_PROGRESO',
+    'EN_CURSO',
+    'FINALIZADA',
+    'COMPLETADA',
+    'CANCELADA',
+    'NO_ASISTIO',
+    'NO ASISTIO'
+  ]);
 
   // Get first day of month and number of days
   const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -35,10 +49,18 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
     return days;
   }, [startDate, endDate]);
 
+  // Filter appointments by selected statuses
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter(apt => {
+      const estado = (apt.estado || '').toUpperCase();
+      return selectedStatuses.includes(estado);
+    });
+  }, [appointments, selectedStatuses]);
+
   // Group appointments by date
   const appointmentsByDate = useMemo(() => {
     const grouped = {};
-    appointments.forEach(apt => {
+    filteredAppointments.forEach(apt => {
       const date = new Date(apt.fechaHoraInicio);
       const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
       if (!grouped[dateKey]) {
@@ -47,7 +69,7 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
       grouped[dateKey].push(apt);
     });
     return grouped;
-  }, [appointments]);
+  }, [filteredAppointments]);
 
   // Get appointments for a specific date
   const getAppointmentsForDate = (date) => {
@@ -118,6 +140,44 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
     if (s === 'CANCELADA') return 'Cancelada';
     if (s === 'NO_ASISTIO' || s === 'NO ASISTIO') return 'No Asistió';
     return estado;
+  };
+
+  // Toggle status filter
+  const toggleStatusFilter = (statusGroup) => {
+    setSelectedStatuses(prev => {
+      const statusMap = {
+        'ESPERA': ['ESPERA'],
+        'CONFIRMADA': ['CONFIRMADA'],
+        'PROGRESO': ['PROGRESO', 'EN_PROGRESO', 'EN_CURSO'],
+        'FINALIZADA': ['FINALIZADA', 'COMPLETADA'],
+        'CANCELADA': ['CANCELADA', 'NO_ASISTIO', 'NO ASISTIO']
+      };
+
+      const statusesToToggle = statusMap[statusGroup] || [];
+      const allSelected = statusesToToggle.every(s => prev.includes(s));
+      
+      if (allSelected) {
+        // Remove all statuses in this group
+        return prev.filter(s => !statusesToToggle.includes(s));
+      } else {
+        // Add all statuses in this group
+        return [...new Set([...prev, ...statusesToToggle])];
+      }
+    });
+  };
+
+  // Check if status group is selected
+  const isStatusGroupSelected = (statusGroup) => {
+    const statusMap = {
+      'ESPERA': ['ESPERA'],
+      'CONFIRMADA': ['CONFIRMADA'],
+      'PROGRESO': ['PROGRESO', 'EN_PROGRESO', 'EN_CURSO'],
+      'FINALIZADA': ['FINALIZADA', 'COMPLETADA'],
+      'CANCELADA': ['CANCELADA', 'NO_ASISTIO', 'NO ASISTIO']
+    };
+
+    const statusesToCheck = statusMap[statusGroup] || [];
+    return statusesToCheck.every(s => selectedStatuses.includes(s));
   };
 
   return (
@@ -243,15 +303,90 @@ const VeterinarianCalendar = ({ appointments = [], isLoading = false }) => {
         )}
       </div>
 
-      {/* Legend */}
+      {/* Legend with Filter Buttons */}
       <div className="border-t border-slate-200 p-4">
-        <div className="flex flex-wrap items-center gap-4 text-xs">
-          <span className="font-medium text-slate-600">Estados:</span>
-          <Badge className="bg-purple-100 text-purple-700 border-purple-200">En Espera</Badge>
-          <Badge className="bg-blue-100 text-blue-700 border-blue-200">Confirmada</Badge>
-          <Badge className="bg-amber-100 text-amber-700 border-amber-200">En Progreso</Badge>
-          <Badge className="bg-green-100 text-green-700 border-green-200">Finalizada</Badge>
-          <Badge className="bg-red-100 text-red-700 border-red-200">Cancelada/No Asistió</Badge>
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          <span className="font-medium text-slate-600">Filtrar por estado:</span>
+          <button
+            onClick={() => toggleStatusFilter('ESPERA')}
+            className={cn(
+              "px-3 py-1.5 rounded-md border transition-all cursor-pointer hover:opacity-80",
+              isStatusGroupSelected('ESPERA')
+                ? "bg-purple-100 text-purple-700 border-purple-300 shadow-sm"
+                : "bg-purple-50 text-purple-500 border-purple-200 opacity-50"
+            )}
+          >
+            <span className="flex items-center gap-1.5">
+              {isStatusGroupSelected('ESPERA') && (
+                <span className="text-purple-700">✓</span>
+              )}
+              En Espera
+            </span>
+          </button>
+          <button
+            onClick={() => toggleStatusFilter('CONFIRMADA')}
+            className={cn(
+              "px-3 py-1.5 rounded-md border transition-all cursor-pointer hover:opacity-80",
+              isStatusGroupSelected('CONFIRMADA')
+                ? "bg-blue-100 text-blue-700 border-blue-300 shadow-sm"
+                : "bg-blue-50 text-blue-500 border-blue-200 opacity-50"
+            )}
+          >
+            <span className="flex items-center gap-1.5">
+              {isStatusGroupSelected('CONFIRMADA') && (
+                <span className="text-blue-700">✓</span>
+              )}
+              Confirmada
+            </span>
+          </button>
+          <button
+            onClick={() => toggleStatusFilter('PROGRESO')}
+            className={cn(
+              "px-3 py-1.5 rounded-md border transition-all cursor-pointer hover:opacity-80",
+              isStatusGroupSelected('PROGRESO')
+                ? "bg-amber-100 text-amber-700 border-amber-300 shadow-sm"
+                : "bg-amber-50 text-amber-500 border-amber-200 opacity-50"
+            )}
+          >
+            <span className="flex items-center gap-1.5">
+              {isStatusGroupSelected('PROGRESO') && (
+                <span className="text-amber-700">✓</span>
+              )}
+              En Progreso
+            </span>
+          </button>
+          <button
+            onClick={() => toggleStatusFilter('FINALIZADA')}
+            className={cn(
+              "px-3 py-1.5 rounded-md border transition-all cursor-pointer hover:opacity-80",
+              isStatusGroupSelected('FINALIZADA')
+                ? "bg-green-100 text-green-700 border-green-300 shadow-sm"
+                : "bg-green-50 text-green-500 border-green-200 opacity-50"
+            )}
+          >
+            <span className="flex items-center gap-1.5">
+              {isStatusGroupSelected('FINALIZADA') && (
+                <span className="text-green-700">✓</span>
+              )}
+              Finalizada
+            </span>
+          </button>
+          <button
+            onClick={() => toggleStatusFilter('CANCELADA')}
+            className={cn(
+              "px-3 py-1.5 rounded-md border transition-all cursor-pointer hover:opacity-80",
+              isStatusGroupSelected('CANCELADA')
+                ? "bg-red-100 text-red-700 border-red-300 shadow-sm"
+                : "bg-red-50 text-red-500 border-red-200 opacity-50"
+            )}
+          >
+            <span className="flex items-center gap-1.5">
+              {isStatusGroupSelected('CANCELADA') && (
+                <span className="text-red-700">✓</span>
+              )}
+              Cancelada/No Asistió
+            </span>
+          </button>
         </div>
       </div>
 
