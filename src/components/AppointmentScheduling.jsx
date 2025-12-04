@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import AvailabilityCalendar from '@/components/AvailabilityCalendar';
 
 const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
   const { toast } = useToast();
@@ -39,6 +40,7 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
     motivoConsulta: '',
     estadoGeneralMascota: ''
   });
+  const [selectedDateTime, setSelectedDateTime] = useState(null);
 
   useEffect(() => {
     fetchServices();
@@ -214,6 +216,7 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
           estadoGeneralMascota: ''
         });
         setSelectedPet(null);
+        setSelectedDateTime(null);
         
         // Notify parent to refresh appointments list
         console.log('🔄 [AGENDAR CITA] Actualizando lista de citas...');
@@ -416,24 +419,52 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
                 </select>
               </div>
 
-              {/* Date and Time */}
-              <div className="space-y-2">
-                <Label htmlFor="fechaInicio" className="text-slate-900 flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Fecha y Hora <span className="text-red-500">*</span>
-                </Label>
-                <Input 
-                  id="fechaInicio" 
-                  type="datetime-local" 
-                  min={new Date().toISOString().slice(0, 16)}
-                  value={formData.fechaInicio}
-                  onChange={(e) => setFormData({...formData, fechaInicio: e.target.value})}
-                  required
-                  disabled={!selectedPet}
-                  className="text-slate-900"
-                />
-                <p className="text-xs text-slate-500">Selecciona la fecha y hora para la cita.</p>
-              </div>
+              {/* Date and Time - Availability Calendar */}
+              {veterinarianId ? (
+                <div className="space-y-2">
+                  <Label className="text-slate-900 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Fecha y Hora <span className="text-red-500">*</span>
+                  </Label>
+                  <AvailabilityCalendar
+                    veterinarianId={parseInt(veterinarianId)}
+                    onTimeSelect={(dateTime) => {
+                      setSelectedDateTime(dateTime);
+                      // Convertir a formato "YYYY-MM-DDTHH:mm" para el backend
+                      const year = dateTime.getFullYear();
+                      const month = String(dateTime.getMonth() + 1).padStart(2, '0');
+                      const day = String(dateTime.getDate()).padStart(2, '0');
+                      const hours = String(dateTime.getHours()).padStart(2, '0');
+                      const minutes = String(dateTime.getMinutes()).padStart(2, '0');
+                      setFormData({...formData, fechaInicio: `${year}-${month}-${day}T${hours}:${minutes}`});
+                    }}
+                    selectedDateTime={selectedDateTime}
+                    serviceDuration={services.find(s => s.id === parseInt(formData.servicioId))?.duracion || 30}
+                  />
+                  {selectedDateTime && (
+                    <p className="text-xs text-teal-600 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Horario seleccionado: {selectedDateTime.toLocaleString('es-ES', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label className="text-slate-900 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Fecha y Hora <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-center text-slate-500">
+                    <p className="text-sm">No se pudo identificar el veterinario.</p>
+                  </div>
+                </div>
+              )}
 
               {/* Motivo */}
               <div className="space-y-2">
@@ -480,7 +511,7 @@ const AppointmentScheduling = ({ veterinarianId, onUpdate }) => {
               <Button 
                 type="submit" 
                 className="w-full bg-teal-600 hover:bg-teal-700 text-white" 
-                disabled={!selectedPet || isSubmitting}
+                disabled={!selectedPet || !veterinarianId || !selectedDateTime || isSubmitting}
               >
                 {isSubmitting ? (
                   <>
