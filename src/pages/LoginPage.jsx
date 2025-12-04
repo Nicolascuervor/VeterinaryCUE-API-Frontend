@@ -270,10 +270,17 @@ function LoginPage() {
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img 
-          src="https://horizons-cdn.hostinger.com/d48f490e-8a04-4082-94a1-7d2d7187b9cc/fondo-cue_mesa-de-trabajo-1-9S8WP.jpg" 
+          src="/login-background.jpg" 
           alt="Fondo veterinaria" 
           className="w-full h-full object-cover"
+          onError={(e) => {
+            // Fallback si la imagen no se encuentra
+            e.target.style.display = 'none';
+            e.target.parentElement.style.background = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';
+          }}
         />
+        {/* Overlay oscuro para mejorar legibilidad del formulario */}
+        <div className="absolute inset-0 bg-slate-900/40"></div>
       </div>
 
       <motion.div 
