@@ -242,16 +242,27 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
     // Status filter
     if (statusFilter !== 'todas') {
       filtered = filtered.filter(apt => {
-        const estado = (apt.estado || '').toUpperCase();
+        const estado = (apt.estado || '').toUpperCase().replace(/\s+/g, '_');
+        const filterEstado = statusFilter.toUpperCase().replace(/\s+/g, '_');
+        
+        // Comparación directa del estado
+        if (estado === filterEstado) return true;
+        
+        // Compatibilidad con estados antiguos
         switch (statusFilter) {
-          case 'pendientes':
-            return estado === 'ESPERA' || estado === 'CONFIRMADA';
-          case 'en_progreso':
+          case 'ESPERA':
+            return estado === 'ESPERA';
+          case 'CONFIRMADA':
+            return estado === 'CONFIRMADA';
+          case 'PROGRESO':
             return estado === 'PROGRESO' || estado === 'EN_PROGRESO' || estado === 'EN_CURSO';
-          case 'finalizadas':
+          case 'FINALIZADA':
             return estado === 'FINALIZADA' || estado === 'COMPLETADA';
-          case 'canceladas':
-            return estado === 'CANCELADA' || estado === 'NO_ASISTIO' || estado === 'NO ASISTIO';
+          case 'CANCELADA':
+            return estado === 'CANCELADA';
+          case 'NO_ASISTIO':
+          case 'NO ASISTIO':
+            return estado === 'NO_ASISTIO' || estado === 'NO ASISTIO';
           default:
             return true;
         }
@@ -348,10 +359,12 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
                   className="flex h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="todas">Todas</option>
-                  <option value="pendientes">Pendientes</option>
-                  <option value="en_progreso">En Progreso</option>
-                  <option value="finalizadas">Finalizadas</option>
-                  <option value="canceladas">Canceladas</option>
+                  <option value="ESPERA">En Espera</option>
+                  <option value="CONFIRMADA">Confirmada</option>
+                  <option value="PROGRESO">En Progreso</option>
+                  <option value="FINALIZADA">Finalizada</option>
+                  <option value="CANCELADA">Cancelada</option>
+                  <option value="NO_ASISTIO">No Asistió</option>
                 </select>
               </div>
 
