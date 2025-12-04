@@ -33,7 +33,9 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
   const [isNoShowDialogOpen, setIsNoShowDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [pendingNoShowAppointment, setPendingNoShowAppointment] = useState(null);
+  const [pendingCancelAppointment, setPendingCancelAppointment] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   
   // Search and Filter States
@@ -110,15 +112,15 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
         },
         body: JSON.stringify({
           ...pendingNoShowAppointment,
-          estado: 'CANCELADA',
+          estado: 'NO_ASISTIO',
           observaciones: 'No asistió a la consulta'
         })
       });
 
       if (response.ok) {
         toast({
-          title: "Cita Cancelada",
-          description: "Se ha registrado la inasistencia."
+          title: "No Asistencia Registrada",
+          description: "Se ha registrado que el cliente no asistió a la consulta."
         });
         if (onUpdate) onUpdate();
       } else {
@@ -134,6 +136,53 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
       setIsLoading(false);
       setIsNoShowDialogOpen(false);
       setPendingNoShowAppointment(null);
+    }
+  };
+
+  const handleCancelClick = (appointment) => {
+    setPendingCancelAppointment(appointment);
+    setIsCancelDialogOpen(true);
+  };
+
+  const confirmCancel = async () => {
+    if (!pendingCancelAppointment) return;
+    
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('jwtToken');
+      
+      const response = await fetch(`https://api.veterinariacue.com/api/citas/${pendingCancelAppointment.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...pendingCancelAppointment,
+          estado: 'CANCELADA',
+          observaciones: 'Cita cancelada'
+        })
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Cita Cancelada",
+          description: "La cita ha sido cancelada exitosamente."
+        });
+        if (onUpdate) onUpdate();
+      } else {
+        throw new Error("Error al cancelar la cita");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+      setIsCancelDialogOpen(false);
+      setPendingCancelAppointment(null);
     }
   };
 
@@ -469,6 +518,15 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
                       <Button 
                         variant="ghost" 
                         size="sm" 
+                        className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                        onClick={() => handleCancelClick(apt)}
+                        disabled={isLoading}
+                      >
+                        <XCircle className="w-4 h-4 mr-1" /> Cancelar Cita
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
                         onClick={() => handleNoShowClick(apt)}
                         disabled={isLoading}
@@ -518,7 +576,7 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
               Confirmar No Asistencia
             </DialogTitle>
             <DialogDescription>
-              ¿Está seguro de que desea marcar esta cita como no asistencia? Esta acción cancelará la cita.
+              ¿Está seguro de que desea marcar esta cita como no asistencia? Esta acción registrará que el cliente no asistió a la consulta.
             </DialogDescription>
           </DialogHeader>
           
@@ -540,6 +598,42 @@ const ConsultationManagement = ({ appointments, onUpdate }) => {
               disabled={isLoading}
             >
               Confirmar No Asistencia
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Appointment Confirmation Dialog */}
+      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+              Cancelar Cita
+            </DialogTitle>
+            <DialogDescription>
+              ¿Está seguro de que desea cancelar esta cita? Esta acción establecerá el estado de la cita como "CANCELADA".
+            </DialogDescription>
+          </DialogHeader>
+          
+          {pendingCancelAppointment && (
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 space-y-2">
+              <p className="text-sm"><span className="font-semibold">Mascota:</span> {pendingCancelAppointment.mascota || pendingCancelAppointment.mascotaNombre}</p>
+              <p className="text-sm"><span className="font-semibold">Dueño:</span> {pendingCancelAppointment.propietario || pendingCancelAppointment.ownerName || pendingCancelAppointment.nombreDuenio}</p>
+              <p className="text-sm"><span className="font-semibold">Hora:</span> {pendingCancelAppointment.fechaHoraInicio ? new Date(pendingCancelAppointment.fechaHoraInicio).toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'}) : (pendingCancelAppointment.hora || '--:--')}</p>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)} disabled={isLoading}>
+              No Cancelar
+            </Button>
+            <Button 
+              className="bg-orange-600 hover:bg-orange-700 text-white" 
+              onClick={confirmCancel}
+              disabled={isLoading}
+            >
+              Confirmar Cancelación
             </Button>
           </DialogFooter>
         </DialogContent>
