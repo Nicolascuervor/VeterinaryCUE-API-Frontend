@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 // IMPORTANTE: Configura VITE_STRIPE_PUBLISHABLE_KEY en tu archivo .env
 // Vite solo carga variables que empiezan con VITE_ y solo al iniciar el servidor
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 
-                   import.meta.env.STRIPE_PUBLISHABLE_KEY || // Fallback (no recomendado)
+                   import.meta.env.STRIPE_PUBLISHABLE_KEY || 
                    null;
 
 // Validar que la clave esté configurada y sea válida
@@ -33,33 +33,19 @@ const isValidStripeKey = STRIPE_KEY &&
   STRIPE_KEY !== 'pk_test_51QZ...' &&
   STRIPE_KEY !== 'pk_test_tu_clave_aqui';
 
-if (!isValidStripeKey) {
-  console.error('⚠️ VITE_STRIPE_PUBLISHABLE_KEY no está configurada correctamente.');
-  console.error('Valor actual:', STRIPE_KEY || 'undefined');
-  console.error('Tipo:', typeof STRIPE_KEY);
-  console.error('Empieza con pk_:', STRIPE_KEY?.startsWith('pk_'));
-  console.error('Por favor, verifica que:');
-  console.error('1. El archivo .env existe en la raíz del proyecto');
-  console.error('2. La variable se llama VITE_STRIPE_PUBLISHABLE_KEY (con VITE_ al inicio)');
-  console.error('3. Has reiniciado el servidor de desarrollo después de crear/modificar el .env');
-} else {
-  console.log('✅ Stripe key configurada correctamente:', STRIPE_KEY.substring(0, 20) + '...');
-}
-
 // Solo inicializar Stripe si tenemos una clave válida
 // loadStripe() devuelve una Promise que resuelve a una instancia de Stripe
 // IMPORTANTE: loadStripe debe recibir la clave sin espacios ni caracteres extra
 const stripeKeyClean = isValidStripeKey ? STRIPE_KEY.trim() : null;
+
+// Inicializar Stripe con la clave limpia
+// NOTA: Si el backend usa una clave secreta diferente, Stripe rechazará las peticiones
 const stripePromise = stripeKeyClean ? loadStripe(stripeKeyClean) : null;
 
 // Log para debugging (solo en desarrollo)
 if (import.meta.env.DEV && stripeKeyClean) {
   console.log('🔑 Stripe inicializado con clave:', stripeKeyClean.substring(0, 20) + '...');
   console.log('🔑 Longitud de la clave:', stripeKeyClean.length);
-  console.log('🔑 Clave completa (solo para verificación):', stripeKeyClean);
-  console.log('🔑 Caracteres especiales en la clave:', JSON.stringify(stripeKeyClean));
-  console.log('🔑 Clave desde import.meta.env:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-  console.log('🔑 Todas las variables VITE_*:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')));
 }
 
 const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
@@ -190,16 +176,21 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
         
         // Mensaje más descriptivo para errores 401
         let errorMessage = stripeError.message;
-        if (stripeError.type === 'api_error' || stripeError.code === 'api_key_expired') {
+        if (stripeError.type === 'invalid_request_error' && stripeError.message?.includes('Invalid API Key')) {
+          errorMessage = 'La clave de Stripe no es válida o no corresponde a la cuenta que creó el PaymentIntent. ' +
+                        'Verifica que la clave pública (pk_test_...) en el frontend corresponda a la clave secreta (sk_test_...) ' +
+                        'que se está usando en el backend. Ambas deben ser del mismo par de claves en tu dashboard de Stripe.';
+        } else if (stripeError.type === 'api_error' || stripeError.code === 'api_key_expired') {
           errorMessage = 'La clave de Stripe no es válida. Por favor, verifica tu configuración.';
         }
         
         setError(errorMessage);
-        console.error('Error de Stripe:', {
+        console.error('❌ Error de Stripe:', {
           type: stripeError.type,
           code: stripeError.code,
           message: stripeError.message,
-          decline_code: stripeError.decline_code
+          decline_code: stripeError.decline_code,
+          fullError: stripeError
         });
         
         toast({
@@ -477,7 +468,7 @@ const CheckoutDialog = ({ open, onOpenChange, ownerId, onSuccess }) => {
         </DialogHeader>
 
         {stripePromise ? (
-          <Elements stripe={stripePromise}>
+          <Elements stripe={stripePromise} options={{ locale: 'es' }}>
             <CheckoutForm 
               ownerId={ownerId} 
               onSuccess={() => {
