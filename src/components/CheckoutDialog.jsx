@@ -22,15 +22,30 @@ import { Input } from '@/components/ui/input';
 // IMPORTANTE: Configura VITE_STRIPE_PUBLISHABLE_KEY en tu archivo .env
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
-if (!STRIPE_KEY || STRIPE_KEY === 'pk_test_51QZ...' || STRIPE_KEY.trim() === '') {
-  console.error('⚠️ VITE_STRIPE_PUBLISHABLE_KEY no está configurada. Por favor, crea un archivo .env con tu clave pública de Stripe.');
+// Validar que la clave esté configurada y sea válida
+const isValidStripeKey = STRIPE_KEY && 
+  typeof STRIPE_KEY === 'string' && 
+  STRIPE_KEY.trim() !== '' && 
+  STRIPE_KEY.startsWith('pk_') &&
+  STRIPE_KEY !== 'pk_test_51QZ...' &&
+  STRIPE_KEY !== 'pk_test_tu_clave_aqui';
+
+if (!isValidStripeKey) {
+  console.error('⚠️ VITE_STRIPE_PUBLISHABLE_KEY no está configurada correctamente.');
+  console.error('Valor actual:', STRIPE_KEY || 'undefined');
+  console.error('Tipo:', typeof STRIPE_KEY);
+  console.error('Empieza con pk_:', STRIPE_KEY?.startsWith('pk_'));
+  console.error('Por favor, verifica que:');
+  console.error('1. El archivo .env existe en la raíz del proyecto');
+  console.error('2. La variable se llama VITE_STRIPE_PUBLISHABLE_KEY (con VITE_ al inicio)');
+  console.error('3. Has reiniciado el servidor de desarrollo después de crear/modificar el .env');
+} else {
+  console.log('✅ Stripe key configurada correctamente:', STRIPE_KEY.substring(0, 20) + '...');
 }
 
 // Solo inicializar Stripe si tenemos una clave válida
 // loadStripe() devuelve una Promise que resuelve a una instancia de Stripe
-const stripePromise = STRIPE_KEY && STRIPE_KEY !== 'pk_test_51QZ...' && STRIPE_KEY.trim() !== '' 
-  ? loadStripe(STRIPE_KEY) 
-  : null;
+const stripePromise = isValidStripeKey ? loadStripe(STRIPE_KEY.trim()) : null;
 
 const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
   const stripe = useStripe();
@@ -327,8 +342,16 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
 
 const CheckoutDialog = ({ open, onOpenChange, ownerId, onSuccess }) => {
   const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+  
+  // Validar que la clave esté configurada y sea válida (misma validación que arriba)
+  const isValidStripeKey = STRIPE_KEY && 
+    typeof STRIPE_KEY === 'string' && 
+    STRIPE_KEY.trim() !== '' && 
+    STRIPE_KEY.startsWith('pk_') &&
+    STRIPE_KEY !== 'pk_test_51QZ...' &&
+    STRIPE_KEY !== 'pk_test_tu_clave_aqui';
 
-  if (!STRIPE_KEY || STRIPE_KEY === 'pk_test_51QZ...') {
+  if (!isValidStripeKey) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[500px]">
