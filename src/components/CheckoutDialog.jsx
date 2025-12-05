@@ -14,6 +14,8 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [pedidoId, setPedidoId] = useState(null);
+  const [clientSecret, setClientSecret] = useState(null);
+  const [isSimulated, setIsSimulated] = useState(false);
   const [error, setError] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState(null); // 'idle', 'processing', 'succeeded', 'failed'
   
@@ -53,14 +55,28 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
 
       const data = await response.json();
       console.log('🛒 [CHECKOUT] Datos recibidos:', {
-        pedidoId: data.pedidoId
+        pedidoId: data.pedidoId,
+        clientSecret: data.clientSecret ? data.clientSecret.substring(0, 30) + '...' : 'NO RECIBIDO'
       });
       
       if (!data.pedidoId) {
         throw new Error('No se recibió el pedidoId del backend');
       }
+
+      if (!data.clientSecret) {
+        throw new Error('No se recibió el clientSecret del backend');
+      }
+      
+      // Detectar si es modo simulación (clientSecret empieza con "pi_simulated_")
+      const isSimulatedMode = data.clientSecret.startsWith('pi_simulated_');
+      setIsSimulated(isSimulatedMode);
       
       setPedidoId(data.pedidoId);
+      setClientSecret(data.clientSecret);
+      
+      if (isSimulatedMode) {
+        console.log('🔧 [CHECKOUT] Modo simulación detectado');
+      }
     } catch (error) {
       console.error('🛒 [CHECKOUT] Error initializing checkout:', error);
       setError(error.message || 'Error al iniciar el proceso de pago');
@@ -153,55 +169,48 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
     }
   };
 
-  const simulatePayment = async () => {
-    // Simular procesamiento del pago con un delay
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // Simular éxito del pago (en producción, esto sería una llamada real a una pasarela)
-        // Para esta simulación, siempre será exitoso
-        const success = true;
-        
-        if (success) {
-          resolve({
-            success: true,
-            transactionId: `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-          });
-        } else {
-          reject(new Error('El pago fue rechazado. Por favor, verifica los datos de tu tarjeta.'));
-        }
-      }, 2000); // Simular 2 segundos de procesamiento
-    });
-  };
-
-  const confirmPaymentWithBackend = async (transactionId) => {
-    // Simular la confirmación del pago con el backend
-    // NOTA: En producción, esto debería llamar a un endpoint que procese el pago
-    // o simular el webhook de Stripe. Por ahora, solo simulamos el éxito.
+  const confirmSimulatedPayment = async () => {
+    // Confirmar el pago simulado con el backend
+    // Según la documentación, hay dos opciones:
+    // 1. POST /api/pedidos/simulate/payment/{pedidoId} (más simple)
+    // 2. POST /api/pedidos/simulate/payment/confirm?paymentIntentId={clientSecret}
+    // Usaremos la opción 1 que es más directa
     
     const token = localStorage.getItem('jwtToken');
     
     try {
-      console.log('💳 [PAGO] Simulando confirmación con backend:', {
+      console.log('💳 [PAGO] Confirmando pago simulado con backend:', {
         pedidoId,
-        transactionId
+        clientSecret: clientSecret ? clientSecret.substring(0, 30) + '...' : 'NO DISPONIBLE'
       });
 
-      // Intentar llamar al webhook de Stripe simulado
-      // El backend tiene un endpoint: POST /api/pedidos/stripe/webhook
-      // Pero requiere una firma válida de Stripe. Para la simulación,
-      // asumimos que el pago se procesa correctamente.
-      
-      // En un caso real, aquí se llamaría a un endpoint alternativo
-      // que procese el pago sin requerir la firma de Stripe
-      
-      // Simular delay de confirmación
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      console.log('💳 [PAGO] Pago confirmado exitosamente (simulado)');
-      
-      return { success: true };
+      const response = await fetch(
+        `https://api.veterinariacue.com/api/pedidos/simulate/payment/${pedidoId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('💳 [PAGO] Error del backend:', errorText);
+        throw new Error(errorText || 'Error al confirmar el pago simulado');
+      }
+
+      const result = await response.json();
+      console.log('💳 [PAGO] Respuesta del backend:', result);
+
+      if (!result.success) {
+        throw new Error(result.message || 'El pago no pudo ser confirmado');
+      }
+
+      return result;
     } catch (error) {
-      console.error('💳 [PAGO] Error al confirmar con backend:', error);
+      console.error('💳 [PAGO] Error al confirmar pago simulado:', error);
       throw error;
     }
   };
@@ -231,31 +240,34 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
     setPaymentStatus('processing');
 
     try {
-      console.log('💳 [PAGO] Iniciando procesamiento de pago simulado');
+      console.log('💳 [PAGO] Iniciando procesamiento de pago');
       
-      // Simular procesamiento del pago
-      const paymentResult = await simulatePayment();
-      
-      if (!paymentResult.success) {
-        throw new Error('El pago fue rechazado');
+      if (isSimulated) {
+        // Modo simulación: llamar directamente al endpoint del backend
+        console.log('💳 [PAGO] Usando modo simulación del backend');
+        
+        const result = await confirmSimulatedPayment();
+        
+        if (result.success) {
+          // Pago exitoso
+          setPaymentStatus('succeeded');
+          toast({
+            title: "Pago Exitoso",
+            description: result.message || "Tu pedido ha sido procesado correctamente. El stock se actualizará automáticamente.",
+          });
+          
+          // Esperar un momento antes de cerrar para que el usuario vea el mensaje
+          setTimeout(() => {
+            onSuccess();
+          }, 2000);
+        } else {
+          throw new Error(result.message || 'El pago no pudo ser procesado');
+        }
+      } else {
+        // Modo real: aquí iría la integración con Stripe real
+        // Por ahora, mostramos un error ya que no tenemos Stripe configurado
+        throw new Error('El modo de pago real (Stripe) no está disponible. Por favor, activa el modo simulación en el backend.');
       }
-
-      console.log('💳 [PAGO] Pago simulado exitoso:', paymentResult.transactionId);
-
-      // Confirmar con el backend (simulado)
-      await confirmPaymentWithBackend(paymentResult.transactionId);
-
-      // Pago exitoso
-      setPaymentStatus('succeeded');
-      toast({
-        title: "Pago Exitoso",
-        description: "Tu pedido ha sido procesado correctamente. El stock se actualizará automáticamente.",
-      });
-      
-      // Esperar un momento antes de cerrar para que el usuario vea el mensaje
-      setTimeout(() => {
-        onSuccess();
-      }, 2000);
     } catch (error) {
       console.error('Error processing payment:', error);
       setPaymentStatus('failed');
@@ -388,13 +400,22 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
         )}
       </div>
 
-      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-        <p className="text-sm text-blue-800 font-semibold mb-2">💡 Pasarela de Pagos Simulada</p>
-        <p className="text-xs text-blue-700">
-          Esta es una pasarela de pagos simulada. Puedes usar cualquier número de tarjeta válido (13-19 dígitos) 
-          para completar la compra. El pago siempre será exitoso en modo simulado.
-        </p>
-      </div>
+      {isSimulated ? (
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <p className="text-sm text-blue-800 font-semibold mb-2">💡 Modo Simulación Activado</p>
+          <p className="text-xs text-blue-700">
+            El backend está configurado en modo simulación. Puedes usar cualquier número de tarjeta válido (13-19 dígitos) 
+            para completar la compra. El pago será procesado por el backend en modo simulado.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+          <p className="text-sm text-yellow-800 font-semibold mb-2">⚠️ Modo Real (Stripe)</p>
+          <p className="text-xs text-yellow-700">
+            El backend está configurado para usar Stripe real. Asegúrate de tener Stripe correctamente configurado.
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-3">
         <Button
