@@ -22,11 +22,15 @@ import { Input } from '@/components/ui/input';
 // IMPORTANTE: Configura VITE_STRIPE_PUBLISHABLE_KEY en tu archivo .env
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
-if (!STRIPE_KEY || STRIPE_KEY === 'pk_test_51QZ...') {
+if (!STRIPE_KEY || STRIPE_KEY === 'pk_test_51QZ...' || STRIPE_KEY.trim() === '') {
   console.error('⚠️ VITE_STRIPE_PUBLISHABLE_KEY no está configurada. Por favor, crea un archivo .env con tu clave pública de Stripe.');
 }
 
-const stripePromise = STRIPE_KEY ? loadStripe(STRIPE_KEY) : null;
+// Solo inicializar Stripe si tenemos una clave válida
+// loadStripe() devuelve una Promise que resuelve a una instancia de Stripe
+const stripePromise = STRIPE_KEY && STRIPE_KEY !== 'pk_test_51QZ...' && STRIPE_KEY.trim() !== '' 
+  ? loadStripe(STRIPE_KEY) 
+  : null;
 
 const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
   const stripe = useStripe();
@@ -92,11 +96,24 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
 
     const cardElement = elements.getElement(CardElement);
 
+    if (!cardElement) {
+      setError('No se pudo obtener el elemento de tarjeta. Por favor, recarga la página.');
+      setIsProcessing(false);
+      return;
+    }
+
     try {
-      // Confirmar el pago con Stripe
+      // IMPORTANTE: Usar stripe.confirmCardPayment() de Stripe.js
+      // NO hacer fetch directo a https://api.stripe.com/v1/payment_intents/.../confirm
+      // Stripe.js maneja internamente la comunicación con la API de Stripe
       const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardElement,
+          billing_details: {
+            // Opcional: agregar detalles de facturación si están disponibles
+            // name: 'Nombre del cliente',
+            // email: 'email@example.com',
+          }
         }
       });
 
@@ -127,6 +144,7 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
         }, 2000);
       } else if (paymentIntent.status === 'requires_action') {
         // Requiere autenticación adicional (3D Secure)
+        // handleCardAction maneja la autenticación 3D Secure automáticamente
         const { error: actionError } = await stripe.handleCardAction(clientSecret);
         
         if (actionError) {
@@ -141,9 +159,13 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
           return;
         }
 
-        // Reintentar confirmación después de la acción
+        // Reintentar confirmación después de la acción usando Stripe.js
         const { error: retryError, paymentIntent: retryPaymentIntent } = 
-          await stripe.confirmCardPayment(clientSecret);
+          await stripe.confirmCardPayment(clientSecret, {
+            payment_method: {
+              card: cardElement,
+            }
+          });
 
         if (retryError) {
           setPaymentStatus('failed');
@@ -358,16 +380,23 @@ const CheckoutDialog = ({ open, onOpenChange, ownerId, onSuccess }) => {
           </DialogDescription>
         </DialogHeader>
 
-        <Elements stripe={stripePromise}>
-          <CheckoutForm 
-            ownerId={ownerId} 
-            onSuccess={() => {
-              onSuccess();
-              onOpenChange(false);
-            }}
-            onCancel={() => onOpenChange(false)}
-          />
-        </Elements>
+        {stripePromise ? (
+          <Elements stripe={stripePromise}>
+            <CheckoutForm 
+              ownerId={ownerId} 
+              onSuccess={() => {
+                onSuccess();
+                onOpenChange(false);
+              }}
+              onCancel={() => onOpenChange(false)}
+            />
+          </Elements>
+        ) : (
+          <div className="py-6 text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600">Error al inicializar Stripe. Por favor, verifica tu configuración.</p>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
