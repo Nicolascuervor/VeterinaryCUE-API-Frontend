@@ -20,7 +20,10 @@ import { Input } from '@/components/ui/input';
 
 // Inicializar Stripe - Usar variable de entorno
 // IMPORTANTE: Configura VITE_STRIPE_PUBLISHABLE_KEY en tu archivo .env
-const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+// Vite solo carga variables que empiezan con VITE_ y solo al iniciar el servidor
+const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 
+                   import.meta.env.STRIPE_PUBLISHABLE_KEY || // Fallback (no recomendado)
+                   null;
 
 // Validar que la clave esté configurada y sea válida
 const isValidStripeKey = STRIPE_KEY && 
