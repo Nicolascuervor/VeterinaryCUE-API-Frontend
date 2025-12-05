@@ -48,7 +48,16 @@ if (!isValidStripeKey) {
 
 // Solo inicializar Stripe si tenemos una clave válida
 // loadStripe() devuelve una Promise que resuelve a una instancia de Stripe
-const stripePromise = isValidStripeKey ? loadStripe(STRIPE_KEY.trim()) : null;
+// IMPORTANTE: loadStripe debe recibir la clave sin espacios ni caracteres extra
+const stripeKeyClean = isValidStripeKey ? STRIPE_KEY.trim() : null;
+const stripePromise = stripeKeyClean ? loadStripe(stripeKeyClean) : null;
+
+// Log para debugging (solo en desarrollo)
+if (import.meta.env.DEV && stripeKeyClean) {
+  console.log('🔑 Stripe inicializado con clave:', stripeKeyClean.substring(0, 20) + '...');
+  console.log('🔑 Longitud de la clave:', stripeKeyClean.length);
+  console.log('🔑 Clave completa (solo para verificación):', stripeKeyClean);
+}
 
 const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
   const stripe = useStripe();
@@ -136,12 +145,26 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
       });
 
       if (stripeError) {
-        // Error de Stripe (tarjeta rechazada, etc.)
+        // Error de Stripe (tarjeta rechazada, 401, etc.)
         setPaymentStatus('failed');
-        setError(stripeError.message);
+        
+        // Mensaje más descriptivo para errores 401
+        let errorMessage = stripeError.message;
+        if (stripeError.type === 'api_error' || stripeError.code === 'api_key_expired') {
+          errorMessage = 'La clave de Stripe no es válida. Por favor, verifica tu configuración.';
+        }
+        
+        setError(errorMessage);
+        console.error('Error de Stripe:', {
+          type: stripeError.type,
+          code: stripeError.code,
+          message: stripeError.message,
+          decline_code: stripeError.decline_code
+        });
+        
         toast({
           title: "Error en el Pago",
-          description: stripeError.message,
+          description: errorMessage,
           variant: "destructive"
         });
         setIsProcessing(false);
@@ -211,10 +234,17 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
     } catch (error) {
       console.error('Error processing payment:', error);
       setPaymentStatus('failed');
-      setError(error.message || 'Error al procesar el pago');
+      
+      // Mensaje más descriptivo según el tipo de error
+      let errorMessage = error.message || 'Error al procesar el pago';
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        errorMessage = 'Error de autenticación con Stripe. Por favor, verifica que tu clave pública (VITE_STRIPE_PUBLISHABLE_KEY) sea válida y esté correctamente configurada en el archivo .env';
+      }
+      
+      setError(errorMessage);
       toast({
         title: "Error",
-        description: error.message || 'No se pudo procesar el pago. Por favor, intenta nuevamente.',
+        description: errorMessage,
         variant: "destructive"
       });
       setIsProcessing(false);
