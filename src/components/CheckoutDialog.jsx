@@ -20,7 +20,13 @@ import { Input } from '@/components/ui/input';
 
 // Inicializar Stripe - Usar variable de entorno
 // IMPORTANTE: Configura VITE_STRIPE_PUBLISHABLE_KEY en tu archivo .env
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51QZ...');
+const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+
+if (!STRIPE_KEY || STRIPE_KEY === 'pk_test_51QZ...') {
+  console.error('⚠️ VITE_STRIPE_PUBLISHABLE_KEY no está configurada. Por favor, crea un archivo .env con tu clave pública de Stripe.');
+}
+
+const stripePromise = STRIPE_KEY ? loadStripe(STRIPE_KEY) : null;
 
 const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
   const stripe = useStripe();
@@ -298,6 +304,47 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
 };
 
 const CheckoutDialog = ({ open, onOpenChange, ownerId, onSuccess }) => {
+  const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+
+  if (!STRIPE_KEY || STRIPE_KEY === 'pk_test_51QZ...') {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              Error de Configuración
+            </DialogTitle>
+            <DialogDescription>
+              La clave de Stripe no está configurada correctamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-800 font-semibold mb-2">
+                ⚠️ VITE_STRIPE_PUBLISHABLE_KEY no está configurada
+              </p>
+              <p className="text-sm text-red-700 mb-3">
+                Por favor, crea un archivo <code className="bg-red-100 px-2 py-1 rounded">.env</code> en la raíz del proyecto con:
+              </p>
+              <pre className="bg-red-100 p-3 rounded text-xs text-red-900 overflow-x-auto">
+                VITE_STRIPE_PUBLISHABLE_KEY=pk_test_tu_clave_aqui
+              </pre>
+              <p className="text-xs text-red-600 mt-3">
+                Después de crear el archivo, reinicia el servidor de desarrollo.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cerrar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
