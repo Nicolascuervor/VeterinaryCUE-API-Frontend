@@ -1,16 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import {
-  Elements,
-  CardElement,
-  useStripe,
-  useElements
-} from '@stripe/react-stripe-js';
 import { 
   CreditCard, Loader2, CheckCircle, XCircle, AlertCircle, Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
@@ -18,45 +10,18 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
-// Inicializar Stripe - Usar variable de entorno
-// IMPORTANTE: Configura VITE_STRIPE_PUBLISHABLE_KEY en tu archivo .env
-// Vite solo carga variables que empiezan con VITE_ y solo al iniciar el servidor
-const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 
-                   import.meta.env.STRIPE_PUBLISHABLE_KEY || 
-                   null;
-
-// Validar que la clave esté configurada y sea válida
-const isValidStripeKey = STRIPE_KEY && 
-  typeof STRIPE_KEY === 'string' && 
-  STRIPE_KEY.trim() !== '' && 
-  STRIPE_KEY.startsWith('pk_') &&
-  STRIPE_KEY !== 'pk_test_51QZ...' &&
-  STRIPE_KEY !== 'pk_test_tu_clave_aqui';
-
-// Solo inicializar Stripe si tenemos una clave válida
-// loadStripe() devuelve una Promise que resuelve a una instancia de Stripe
-// IMPORTANTE: loadStripe debe recibir la clave sin espacios ni caracteres extra
-const stripeKeyClean = isValidStripeKey ? STRIPE_KEY.trim() : null;
-
-// Inicializar Stripe con la clave limpia
-// NOTA: Si el backend usa una clave secreta diferente, Stripe rechazará las peticiones
-const stripePromise = stripeKeyClean ? loadStripe(stripeKeyClean) : null;
-
-// Log para debugging (solo en desarrollo)
-if (import.meta.env.DEV && stripeKeyClean) {
-  console.log('🔑 Stripe inicializado con clave:', stripeKeyClean.substring(0, 20) + '...');
-  console.log('🔑 Longitud de la clave:', stripeKeyClean.length);
-}
-
 const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
-  const stripe = useStripe();
-  const elements = useElements();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [clientSecret, setClientSecret] = useState(null);
   const [pedidoId, setPedidoId] = useState(null);
   const [error, setError] = useState(null);
-  const [paymentStatus, setPaymentStatus] = useState(null); // 'processing', 'succeeded', 'failed'
+  const [paymentStatus, setPaymentStatus] = useState(null); // 'idle', 'processing', 'succeeded', 'failed'
+  
+  // Form data
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
 
   useEffect(() => {
     // Iniciar checkout al montar el componente
@@ -70,7 +35,6 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
 
       const token = localStorage.getItem('jwtToken');
       console.log('🛒 [CHECKOUT] Iniciando checkout para usuario:', ownerId);
-      console.log('🛒 [CHECKOUT] Token disponible:', !!token);
       
       const response = await fetch('https://api.veterinariacue.com/api/pedidos/checkout', {
         method: 'POST',
@@ -81,12 +45,6 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
         }
       });
 
-      console.log('🛒 [CHECKOUT] Respuesta del backend:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
-
       if (!response.ok) {
         const errorMessage = await response.text();
         console.error('🛒 [CHECKOUT] Error del backend:', errorMessage);
@@ -95,15 +53,13 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
 
       const data = await response.json();
       console.log('🛒 [CHECKOUT] Datos recibidos:', {
-        pedidoId: data.pedidoId,
-        clientSecret: data.clientSecret ? data.clientSecret.substring(0, 20) + '...' : 'NO RECIBIDO'
+        pedidoId: data.pedidoId
       });
       
-      if (!data.clientSecret) {
-        throw new Error('No se recibió el clientSecret del backend');
+      if (!data.pedidoId) {
+        throw new Error('No se recibió el pedidoId del backend');
       }
       
-      setClientSecret(data.clientSecret);
       setPedidoId(data.pedidoId);
     } catch (error) {
       console.error('🛒 [CHECKOUT] Error initializing checkout:', error);
@@ -118,10 +74,155 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
     }
   };
 
+  // Validar formato de tarjeta
+  const validateCard = () => {
+    // Limpiar espacios y guiones del número de tarjeta
+    const cleanCardNumber = cardNumber.replace(/\s+/g, '').replace(/-/g, '');
+    
+    // Validar número de tarjeta (debe tener 13-19 dígitos)
+    if (!/^\d{13,19}$/.test(cleanCardNumber)) {
+      return 'El número de tarjeta debe tener entre 13 y 19 dígitos';
+    }
+
+    // Validar nombre
+    if (!cardName.trim() || cardName.trim().length < 3) {
+      return 'El nombre del titular es requerido (mínimo 3 caracteres)';
+    }
+
+    // Validar fecha de expiración (MM/YY)
+    if (!/^\d{2}\/\d{2}$/.test(expiryDate)) {
+      return 'La fecha de expiración debe tener el formato MM/YY';
+    }
+
+    const [month, year] = expiryDate.split('/');
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
+    const currentYear = new Date().getFullYear() % 100;
+    const currentMonth = new Date().getMonth() + 1;
+
+    if (monthNum < 1 || monthNum > 12) {
+      return 'El mes debe estar entre 01 y 12';
+    }
+
+    if (yearNum < currentYear || (yearNum === currentYear && monthNum < currentMonth)) {
+      return 'La tarjeta ha expirado';
+    }
+
+    // Validar CVV (3 o 4 dígitos)
+    if (!/^\d{3,4}$/.test(cvv)) {
+      return 'El CVV debe tener 3 o 4 dígitos';
+    }
+
+    return null;
+  };
+
+  // Formatear número de tarjeta mientras se escribe
+  const formatCardNumber = (value) => {
+    const cleaned = value.replace(/\s+/g, '').replace(/-/g, '');
+    const formatted = cleaned.match(/.{1,4}/g)?.join(' ') || cleaned;
+    return formatted;
+  };
+
+  // Formatear fecha de expiración mientras se escribe
+  const formatExpiryDate = (value) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length >= 2) {
+      return cleaned.slice(0, 2) + '/' + cleaned.slice(2, 4);
+    }
+    return cleaned;
+  };
+
+  const handleCardNumberChange = (e) => {
+    const formatted = formatCardNumber(e.target.value);
+    if (formatted.length <= 19) { // Máximo 16 dígitos + 3 espacios
+      setCardNumber(formatted);
+    }
+  };
+
+  const handleExpiryChange = (e) => {
+    const formatted = formatExpiryDate(e.target.value);
+    if (formatted.length <= 5) { // MM/YY
+      setExpiryDate(formatted);
+    }
+  };
+
+  const handleCvvChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '');
+    if (value.length <= 4) {
+      setCvv(value);
+    }
+  };
+
+  const simulatePayment = async () => {
+    // Simular procesamiento del pago con un delay
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        // Simular éxito del pago (en producción, esto sería una llamada real a una pasarela)
+        // Para esta simulación, siempre será exitoso
+        const success = true;
+        
+        if (success) {
+          resolve({
+            success: true,
+            transactionId: `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+          });
+        } else {
+          reject(new Error('El pago fue rechazado. Por favor, verifica los datos de tu tarjeta.'));
+        }
+      }, 2000); // Simular 2 segundos de procesamiento
+    });
+  };
+
+  const confirmPaymentWithBackend = async (transactionId) => {
+    // Simular la confirmación del pago con el backend
+    // NOTA: En producción, esto debería llamar a un endpoint que procese el pago
+    // o simular el webhook de Stripe. Por ahora, solo simulamos el éxito.
+    
+    const token = localStorage.getItem('jwtToken');
+    
+    try {
+      console.log('💳 [PAGO] Simulando confirmación con backend:', {
+        pedidoId,
+        transactionId
+      });
+
+      // Intentar llamar al webhook de Stripe simulado
+      // El backend tiene un endpoint: POST /api/pedidos/stripe/webhook
+      // Pero requiere una firma válida de Stripe. Para la simulación,
+      // asumimos que el pago se procesa correctamente.
+      
+      // En un caso real, aquí se llamaría a un endpoint alternativo
+      // que procese el pago sin requerir la firma de Stripe
+      
+      // Simular delay de confirmación
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('💳 [PAGO] Pago confirmado exitosamente (simulado)');
+      
+      return { success: true };
+    } catch (error) {
+      console.error('💳 [PAGO] Error al confirmar con backend:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!stripe || !elements || !clientSecret) {
+    // Validar formulario
+    const validationError = validateCard();
+    if (validationError) {
+      setError(validationError);
+      toast({
+        title: "Error de Validación",
+        description: validationError,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!pedidoId) {
+      setError('No se pudo obtener el ID del pedido. Por favor, intenta nuevamente.');
       return;
     }
 
@@ -129,172 +230,43 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
     setError(null);
     setPaymentStatus('processing');
 
-    const cardElement = elements.getElement(CardElement);
-
-    if (!cardElement) {
-      setError('No se pudo obtener el elemento de tarjeta. Por favor, recarga la página.');
-      setIsProcessing(false);
-      return;
-    }
-
     try {
-      console.log('💳 [PAGO] Iniciando confirmación de pago');
-      console.log('💳 [PAGO] ClientSecret recibido:', clientSecret ? clientSecret.substring(0, 20) + '...' : 'NO DISPONIBLE');
-      console.log('💳 [PAGO] Stripe instance:', stripe ? 'Disponible' : 'NO DISPONIBLE');
-      console.log('💳 [PAGO] CardElement:', cardElement ? 'Disponible' : 'NO DISPONIBLE');
-      console.log('💳 [PAGO] Stripe key usado:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ? import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY.substring(0, 20) + '...' : 'NO DISPONIBLE');
+      console.log('💳 [PAGO] Iniciando procesamiento de pago simulado');
       
-      // IMPORTANTE: Usar stripe.confirmCardPayment() de Stripe.js
-      // NO hacer fetch directo a https://api.stripe.com/v1/payment_intents/.../confirm
-      // Stripe.js maneja internamente la comunicación con la API de Stripe
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            // Opcional: agregar detalles de facturación si están disponibles
-            // name: 'Nombre del cliente',
-            // email: 'email@example.com',
-          }
-        }
-      });
+      // Simular procesamiento del pago
+      const paymentResult = await simulatePayment();
       
-      console.log('💳 [PAGO] Resultado de confirmCardPayment:', {
-        error: stripeError ? {
-          type: stripeError.type,
-          code: stripeError.code,
-          message: stripeError.message
-        } : null,
-        paymentIntent: paymentIntent ? {
-          id: paymentIntent.id,
-          status: paymentIntent.status
-        } : null
-      });
-
-      if (stripeError) {
-        // Error de Stripe (tarjeta rechazada, 401, etc.)
-        setPaymentStatus('failed');
-        
-        // Mensaje más descriptivo para errores 401
-        let errorMessage = stripeError.message;
-        if (stripeError.type === 'invalid_request_error' && stripeError.message?.includes('Invalid API Key')) {
-          errorMessage = 'La clave de Stripe no es válida o no corresponde a la cuenta que creó el PaymentIntent. ' +
-                        'Verifica que la clave pública (pk_test_...) en el frontend corresponda a la clave secreta (sk_test_...) ' +
-                        'que se está usando en el backend. Ambas deben ser del mismo par de claves en tu dashboard de Stripe.';
-        } else if (stripeError.type === 'api_error' || stripeError.code === 'api_key_expired') {
-          errorMessage = 'La clave de Stripe no es válida. Por favor, verifica tu configuración.';
-        }
-        
-        setError(errorMessage);
-        console.error('❌ Error de Stripe:', {
-          type: stripeError.type,
-          code: stripeError.code,
-          message: stripeError.message,
-          decline_code: stripeError.decline_code,
-          fullError: stripeError
-        });
-        
-        toast({
-          title: "Error en el Pago",
-          description: errorMessage,
-          variant: "destructive"
-        });
-        setIsProcessing(false);
-        return;
+      if (!paymentResult.success) {
+        throw new Error('El pago fue rechazado');
       }
 
-      if (paymentIntent.status === 'succeeded') {
-        // Pago exitoso
-        setPaymentStatus('succeeded');
-        toast({
-          title: "Pago Exitoso",
-          description: "Tu pedido ha sido procesado correctamente. El stock se actualizará automáticamente.",
-        });
-        
-        // Esperar un momento antes de cerrar para que el usuario vea el mensaje
-        setTimeout(() => {
-          onSuccess();
-        }, 2000);
-      } else if (paymentIntent.status === 'requires_action') {
-        // Requiere autenticación adicional (3D Secure)
-        // handleCardAction maneja la autenticación 3D Secure automáticamente
-        const { error: actionError } = await stripe.handleCardAction(clientSecret);
-        
-        if (actionError) {
-          setPaymentStatus('failed');
-          setError(actionError.message);
-          toast({
-            title: "Error en la Autenticación",
-            description: actionError.message,
-            variant: "destructive"
-          });
-          setIsProcessing(false);
-          return;
-        }
+      console.log('💳 [PAGO] Pago simulado exitoso:', paymentResult.transactionId);
 
-        // Reintentar confirmación después de la acción usando Stripe.js
-        const { error: retryError, paymentIntent: retryPaymentIntent } = 
-          await stripe.confirmCardPayment(clientSecret, {
-            payment_method: {
-              card: cardElement,
-            }
-          });
+      // Confirmar con el backend (simulado)
+      await confirmPaymentWithBackend(paymentResult.transactionId);
 
-        if (retryError) {
-          setPaymentStatus('failed');
-          setError(retryError.message);
-          setIsProcessing(false);
-          return;
-        }
-
-        if (retryPaymentIntent.status === 'succeeded') {
-          setPaymentStatus('succeeded');
-          toast({
-            title: "Pago Exitoso",
-            description: "Tu pedido ha sido procesado correctamente.",
-          });
-          setTimeout(() => {
-            onSuccess();
-          }, 2000);
-        }
-      } else {
-        // Otro estado
-        setPaymentStatus('failed');
-        setError(`Estado del pago: ${paymentIntent.status}`);
-        setIsProcessing(false);
-      }
+      // Pago exitoso
+      setPaymentStatus('succeeded');
+      toast({
+        title: "Pago Exitoso",
+        description: "Tu pedido ha sido procesado correctamente. El stock se actualizará automáticamente.",
+      });
+      
+      // Esperar un momento antes de cerrar para que el usuario vea el mensaje
+      setTimeout(() => {
+        onSuccess();
+      }, 2000);
     } catch (error) {
       console.error('Error processing payment:', error);
       setPaymentStatus('failed');
-      
-      // Mensaje más descriptivo según el tipo de error
-      let errorMessage = error.message || 'Error al procesar el pago';
-      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-        errorMessage = 'Error de autenticación con Stripe. Por favor, verifica que tu clave pública (VITE_STRIPE_PUBLISHABLE_KEY) sea válida y esté correctamente configurada en el archivo .env';
-      }
-      
-      setError(errorMessage);
+      setError(error.message || 'Error al procesar el pago. Por favor, intenta nuevamente.');
       toast({
-        title: "Error",
-        description: errorMessage,
+        title: "Error en el Pago",
+        description: error.message || 'No se pudo procesar el pago. Por favor, intenta nuevamente.',
         variant: "destructive"
       });
       setIsProcessing(false);
     }
-  };
-
-  const cardElementOptions = {
-    style: {
-      base: {
-        fontSize: '16px',
-        color: '#424770',
-        '::placeholder': {
-          color: '#aab7c4',
-        },
-      },
-      invalid: {
-        color: '#9e2146',
-      },
-    },
   };
 
   if (paymentStatus === 'succeeded') {
@@ -308,7 +280,7 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
     );
   }
 
-  if (isProcessing && !clientSecret) {
+  if (isProcessing && !pedidoId) {
     return (
       <div className="text-center py-8">
         <Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-4" />
@@ -317,7 +289,7 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
     );
   }
 
-  if (error && !clientSecret) {
+  if (error && !pedidoId) {
     return (
       <div className="text-center py-8">
         <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
@@ -338,37 +310,89 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
           <p className="text-sm font-semibold text-slate-900">Pago Seguro</p>
         </div>
         <p className="text-xs text-slate-600">
-          Tu información de pago está protegida con encriptación de nivel bancario.
+          Tu información de pago está protegida. Esta es una pasarela de pagos simulada para fines de demostración.
         </p>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="card-element" className="text-slate-900">
-          Información de la Tarjeta
-        </Label>
-        <div className="p-4 border border-slate-200 rounded-lg bg-white">
-          <CardElement
-            id="card-element"
-            options={cardElementOptions}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="card-number" className="text-slate-900">
+            Número de Tarjeta
+          </Label>
+          <Input
+            id="card-number"
+            type="text"
+            placeholder="1234 5678 9012 3456"
+            value={cardNumber}
+            onChange={handleCardNumberChange}
+            maxLength={19}
+            disabled={isProcessing}
+            className="font-mono"
           />
         </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="card-name" className="text-slate-900">
+            Nombre del Titular
+          </Label>
+          <Input
+            id="card-name"
+            type="text"
+            placeholder="Juan Pérez"
+            value={cardName}
+            onChange={(e) => setCardName(e.target.value.toUpperCase())}
+            disabled={isProcessing}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="expiry-date" className="text-slate-900">
+              Fecha de Expiración
+            </Label>
+            <Input
+              id="expiry-date"
+              type="text"
+              placeholder="MM/YY"
+              value={expiryDate}
+              onChange={handleExpiryChange}
+              maxLength={5}
+              disabled={isProcessing}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cvv" className="text-slate-900">
+              CVV
+            </Label>
+            <Input
+              id="cvv"
+              type="text"
+              placeholder="123"
+              value={cvv}
+              onChange={handleCvvChange}
+              maxLength={4}
+              disabled={isProcessing}
+              className="font-mono"
+            />
+          </div>
+        </div>
+
         {error && paymentStatus === 'failed' && (
-          <p className="text-sm text-red-600 flex items-center gap-1">
-            <AlertCircle className="w-4 h-4" />
-            {error}
-          </p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-sm text-red-600 flex items-center gap-1">
+              <AlertCircle className="w-4 h-4" />
+              {error}
+            </p>
+          </div>
         )}
       </div>
 
       <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-        <p className="text-sm text-blue-800 font-semibold mb-1">Tarjetas de Prueba (Stripe Test Mode)</p>
+        <p className="text-sm text-blue-800 font-semibold mb-2">💡 Pasarela de Pagos Simulada</p>
         <p className="text-xs text-blue-700">
-          <strong>Éxito:</strong> 4242 4242 4242 4242 | 
-          <strong> 3D Secure:</strong> 4000 0025 0000 3155 | 
-          <strong> Rechazada:</strong> 4000 0000 0000 0002
-        </p>
-        <p className="text-xs text-blue-600 mt-1">
-          Fecha: cualquier fecha futura | CVC: cualquier 3 dígitos
+          Esta es una pasarela de pagos simulada. Puedes usar cualquier número de tarjeta válido (13-19 dígitos) 
+          para completar la compra. El pago siempre será exitoso en modo simulado.
         </p>
       </div>
 
@@ -384,7 +408,7 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
         </Button>
         <Button
           type="submit"
-          disabled={!stripe || isProcessing || !clientSecret}
+          disabled={isProcessing || !pedidoId}
           className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
         >
           {isProcessing ? (
@@ -405,55 +429,6 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
 };
 
 const CheckoutDialog = ({ open, onOpenChange, ownerId, onSuccess }) => {
-  const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-  
-  // Validar que la clave esté configurada y sea válida (misma validación que arriba)
-  const isValidStripeKey = STRIPE_KEY && 
-    typeof STRIPE_KEY === 'string' && 
-    STRIPE_KEY.trim() !== '' && 
-    STRIPE_KEY.startsWith('pk_') &&
-    STRIPE_KEY !== 'pk_test_51QZ...' &&
-    STRIPE_KEY !== 'pk_test_tu_clave_aqui';
-
-  if (!isValidStripeKey) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              Error de Configuración
-            </DialogTitle>
-            <DialogDescription>
-              La clave de Stripe no está configurada correctamente.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-6">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-sm text-red-800 font-semibold mb-2">
-                ⚠️ VITE_STRIPE_PUBLISHABLE_KEY no está configurada
-              </p>
-              <p className="text-sm text-red-700 mb-3">
-                Por favor, crea un archivo <code className="bg-red-100 px-2 py-1 rounded">.env</code> en la raíz del proyecto con:
-              </p>
-              <pre className="bg-red-100 p-3 rounded text-xs text-red-900 overflow-x-auto">
-                VITE_STRIPE_PUBLISHABLE_KEY=pk_test_tu_clave_aqui
-              </pre>
-              <p className="text-xs text-red-600 mt-3">
-                Después de crear el archivo, reinicia el servidor de desarrollo.
-              </p>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cerrar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -467,27 +442,17 @@ const CheckoutDialog = ({ open, onOpenChange, ownerId, onSuccess }) => {
           </DialogDescription>
         </DialogHeader>
 
-        {stripePromise ? (
-          <Elements stripe={stripePromise} options={{ locale: 'es' }}>
-            <CheckoutForm 
-              ownerId={ownerId} 
-              onSuccess={() => {
-                onSuccess();
-                onOpenChange(false);
-              }}
-              onCancel={() => onOpenChange(false)}
-            />
-          </Elements>
-        ) : (
-          <div className="py-6 text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <p className="text-red-600">Error al inicializar Stripe. Por favor, verifica tu configuración.</p>
-          </div>
-        )}
+        <CheckoutForm 
+          ownerId={ownerId} 
+          onSuccess={() => {
+            onSuccess();
+            onOpenChange(false);
+          }}
+          onCancel={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   );
 };
 
 export default CheckoutDialog;
-

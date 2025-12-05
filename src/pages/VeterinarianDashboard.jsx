@@ -326,7 +326,7 @@ const VeterinarianDashboard = () => {
             <div className="flex flex-col justify-center">
               <h1 className="text-xl font-bold text-slate-800 hidden md:block leading-tight">
                 Vet<span className="text-teal-600">CUE</span>
-              </h1>
+            </h1>
               <span className="text-slate-400 font-normal text-sm hidden md:block leading-tight">Portal Veterinario</span>
             </div>
           </div>
@@ -604,25 +604,25 @@ const AgendaView = ({ appointments, isLoading }) => {
 
   return (
     <>
-      <Card className="border-none shadow-md bg-white/80 backdrop-blur-sm overflow-hidden">
-        <CardHeader className="border-b border-slate-100 bg-white pb-4">
-          <div className="flex justify-between items-center">
-            <div>
+    <Card className="border-none shadow-md bg-white/80 backdrop-blur-sm overflow-hidden">
+      <CardHeader className="border-b border-slate-100 bg-white pb-4">
+        <div className="flex justify-between items-center">
+          <div>
               <CardTitle className="text-xl text-slate-800">Mi Agenda</CardTitle>
-              <CardDescription>
-                {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </CardDescription>
-            </div>
+            <CardDescription>
+              {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </CardDescription>
+          </div>
             <Button 
               variant="outline" 
               size="sm" 
               className="gap-2 hidden sm:flex"
               onClick={handleOpenCalendar}
             >
-               <CalendarIcon className="w-4 h-4" /> Ver Calendario Completo
-            </Button>
-          </div>
-        </CardHeader>
+             <CalendarIcon className="w-4 h-4" /> Ver Calendario Completo
+          </Button>
+        </div>
+      </CardHeader>
       <CardContent className="p-0">
         <div className="divide-y divide-slate-100">
           {upcomingAppointments.length === 0 ? (

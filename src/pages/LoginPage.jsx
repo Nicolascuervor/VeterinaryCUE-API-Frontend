@@ -41,7 +41,7 @@ function LoginPage() {
     e.preventDefault();
     
     setDebugError(null);
-
+    
     if (!email || !password) {
       toast({
         title: "Campos requeridos",
