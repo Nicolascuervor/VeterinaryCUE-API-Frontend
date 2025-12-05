@@ -57,6 +57,9 @@ if (import.meta.env.DEV && stripeKeyClean) {
   console.log('🔑 Stripe inicializado con clave:', stripeKeyClean.substring(0, 20) + '...');
   console.log('🔑 Longitud de la clave:', stripeKeyClean.length);
   console.log('🔑 Clave completa (solo para verificación):', stripeKeyClean);
+  console.log('🔑 Caracteres especiales en la clave:', JSON.stringify(stripeKeyClean));
+  console.log('🔑 Clave desde import.meta.env:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+  console.log('🔑 Todas las variables VITE_*:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')));
 }
 
 const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
@@ -80,6 +83,9 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
       setError(null);
 
       const token = localStorage.getItem('jwtToken');
+      console.log('🛒 [CHECKOUT] Iniciando checkout para usuario:', ownerId);
+      console.log('🛒 [CHECKOUT] Token disponible:', !!token);
+      
       const response = await fetch('https://api.veterinariacue.com/api/pedidos/checkout', {
         method: 'POST',
         headers: {
@@ -89,16 +95,32 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
         }
       });
 
+      console.log('🛒 [CHECKOUT] Respuesta del backend:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       if (!response.ok) {
         const errorMessage = await response.text();
+        console.error('🛒 [CHECKOUT] Error del backend:', errorMessage);
         throw new Error(errorMessage || 'Error al iniciar el checkout');
       }
 
       const data = await response.json();
+      console.log('🛒 [CHECKOUT] Datos recibidos:', {
+        pedidoId: data.pedidoId,
+        clientSecret: data.clientSecret ? data.clientSecret.substring(0, 20) + '...' : 'NO RECIBIDO'
+      });
+      
+      if (!data.clientSecret) {
+        throw new Error('No se recibió el clientSecret del backend');
+      }
+      
       setClientSecret(data.clientSecret);
       setPedidoId(data.pedidoId);
     } catch (error) {
-      console.error('Error initializing checkout:', error);
+      console.error('🛒 [CHECKOUT] Error initializing checkout:', error);
       setError(error.message || 'Error al iniciar el proceso de pago');
       toast({
         title: "Error",
@@ -130,6 +152,12 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
     }
 
     try {
+      console.log('💳 [PAGO] Iniciando confirmación de pago');
+      console.log('💳 [PAGO] ClientSecret recibido:', clientSecret ? clientSecret.substring(0, 20) + '...' : 'NO DISPONIBLE');
+      console.log('💳 [PAGO] Stripe instance:', stripe ? 'Disponible' : 'NO DISPONIBLE');
+      console.log('💳 [PAGO] CardElement:', cardElement ? 'Disponible' : 'NO DISPONIBLE');
+      console.log('💳 [PAGO] Stripe key usado:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ? import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY.substring(0, 20) + '...' : 'NO DISPONIBLE');
+      
       // IMPORTANTE: Usar stripe.confirmCardPayment() de Stripe.js
       // NO hacer fetch directo a https://api.stripe.com/v1/payment_intents/.../confirm
       // Stripe.js maneja internamente la comunicación con la API de Stripe
@@ -142,6 +170,18 @@ const CheckoutForm = ({ ownerId, onSuccess, onCancel }) => {
             // email: 'email@example.com',
           }
         }
+      });
+      
+      console.log('💳 [PAGO] Resultado de confirmCardPayment:', {
+        error: stripeError ? {
+          type: stripeError.type,
+          code: stripeError.code,
+          message: stripeError.message
+        } : null,
+        paymentIntent: paymentIntent ? {
+          id: paymentIntent.id,
+          status: paymentIntent.status
+        } : null
       });
 
       if (stripeError) {
